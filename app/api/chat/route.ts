@@ -6,7 +6,9 @@ const client = new OpenAI({
   baseURL: 'https://api.x.ai/v1',
 });
 
-const SYSTEM_PROMPT = `You are an expert echocardiographer and cardiac sonographer educator with 20+ years of clinical experience. Your role is to help students master echocardiography through clear, accurate, and clinically relevant teaching.
+const MODEL_PRIORITY = ['grok-4-1-fast-non-reasoning', 'grok-3-fast', 'grok-3'];
+
+const DEFAULT_SYSTEM_PROMPT = `You are an expert echocardiographer and cardiac sonographer educator with 20+ years of clinical experience. Your role is to help students master echocardiography through clear, accurate, and clinically relevant teaching.
 
 You excel at:
 - Explaining normal echocardiographic values and measurements
@@ -30,25 +32,36 @@ Teaching style:
 Always emphasize that your responses are for educational purposes and clinical decisions require direct patient assessment by licensed professionals.`;
 
 export async function POST(req: NextRequest) {
+  if (!process.env.XAI_API_KEY) {
+    return NextResponse.json(
+      { error: 'XAI_API_KEY is not configured. Add it to your .env.local file.' },
+      { status: 500 },
+    );
+  }
+
+  let messages: Array<{ role: string; content: string }>;
+  let systemPrompt: string | undefined;
+
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    messages = body.messages;
+    systemPrompt = body.systemPrompt;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-    if (!process.env.XAI_API_KEY) {
-      return NextResponse.json(
-        { error: 'XAI_API_KEY is not configured. Add it to your .env.local file.' },
-        { status: 500 }
-      );
-    }
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
+  }
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
-    }
+  const activeSystemPrompt = systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
-    const stream = await client.chat.completions.create({
-      model: 'grok-4-1-fast-non-reasoning',
+  const createStream = async (model: string) => {
+    return client.chat.completions.create({
+      model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...messages.map((m: { role: string; content: string }) => ({
+        { role: 'system', content: activeSystemPrompt },
+        ...messages.map((m) => ({
           role: m.role as 'user' | 'assistant',
           content: m.content,
         })),
@@ -57,33 +70,53 @@ export async function POST(req: NextRequest) {
       max_tokens: 2048,
       temperature: 0.7,
     });
+  };
 
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const data = JSON.stringify(chunk);
-            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-          }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
-      },
-    });
+  let stream: Awaited<ReturnType<typeof createStream>> | null = null;
+  let lastError: unknown;
 
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    });
-  } catch (err) {
-    console.error('Chat API error:', err);
-    const message = err instanceof Error ? err.message : 'Internal server error';
+  for (const model of MODEL_PRIORITY) {
+    try {
+      stream = await createStream(model);
+      break;
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.toLowerCase().includes('model') && !msg.toLowerCase().includes('not found')) {
+        break;
+      }
+    }
+  }
+
+  if (!stream) {
+    console.error('Chat API error (all models failed):', lastError);
+    const message = lastError instanceof Error ? lastError.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
+
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream!) {
+          const data = JSON.stringify(chunk);
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+        }
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (err) {
+        console.error('Stream error:', err);
+        controller.error(err);
+      }
+    },
+  });
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }

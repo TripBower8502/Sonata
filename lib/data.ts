@@ -1,511 +1,211 @@
-export type FlashcardCategory = 'Views' | 'Measurements' | 'Pathology' | 'Doppler';
-
 export interface Flashcard {
   id: string;
-  category: FlashcardCategory;
   front: string;
   back: string;
+  category: string;
   normalValues?: string;
 }
 
-export interface QuizQuestion {
+export interface CaseStudy {
   id: string;
-  category: string;
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
+  title: string;
+  subtitle: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  difficultyColor: string;
+  icon: string;
+  patient: string;
+  history: string;
+  echoFindings: string[];
+  keyQuestion: string;
+  diagnosis: string;
+  teachingPoints: string[];
+  systemPrompt: string;
 }
 
-export const flashcards: Flashcard[] = [
-  // VIEWS
-  {
-    id: 'v1',
-    category: 'Views',
-    front: 'PLAX — Parasternal Long Axis View',
-    back: 'Standard 2D view obtained from the left parasternal window. Transducer placed at 3rd–4th intercostal space, left sternal border. Shows LV (long axis), RV, mitral valve, aortic valve, aortic root, and posterior pericardium. Ideal for measuring LV dimensions, aortic root, and left atrium.',
-    normalValues: 'Ao root <3.7 cm | LA <4.0 cm | LVEDD 3.9–5.3 cm (F), 4.2–5.9 cm (M)',
-  },
-  {
-    id: 'v2',
-    category: 'Views',
-    front: 'PSAX — Parasternal Short Axis View',
-    back: 'Cross-sectional view obtained by rotating 90° clockwise from PLAX. Multiple levels possible: aortic valve (Mercedes-Benz sign, AV area), mitral valve (fish-mouth appearance, planimetry), papillary muscle level (LV geometry, wall motion), and apical level. Best for assessing RV pressure overload (D-sign) and LV wall motion segmentally.',
-    normalValues: 'AV area: 2.6–3.5 cm² | Circular LV at pap level',
-  },
-  {
-    id: 'v3',
-    category: 'Views',
-    front: 'A4C — Apical 4-Chamber View',
-    back: 'Obtained from the cardiac apex with transducer pointed toward the base. Shows all four chambers (LV, RV, LA, RA), mitral valve, and tricuspid valve in a single view. Used for biplane EF (with A2C), RV assessment, atrial sizes, and Doppler interrogation of MV/TV inflow. The LV should be foreshortened if not properly positioned.',
-    normalValues: 'LV/RV ratio >1:1 | RV basal diameter <4.2 cm | RA area <18 cm²',
-  },
-  {
-    id: 'v4',
-    category: 'Views',
-    front: 'A2C — Apical 2-Chamber View',
-    back: 'Obtained by rotating 60° counterclockwise from A4C. Shows only LV and LA — no right-sided structures. Visualizes anterior and inferior walls. Used with A4C for biplane Simpson\'s EF calculation. Important for assessing LAA (with color Doppler), and inferior/anterior wall motion abnormalities.',
-    normalValues: 'Used in conjunction with A4C for accurate EF | No RV should be visible',
-  },
-  {
-    id: 'v5',
-    category: 'Views',
-    front: 'A5C — Apical 5-Chamber View',
-    back: 'Obtained by tilting anteriorly from A4C. Brings the LVOT (left ventricular outflow tract) and aortic valve into view as the "5th chamber." Used for PW Doppler of LVOT velocity (VTI for SV/CO), CW Doppler of aortic stenosis jets, and assessment of subaortic obstruction (HOCM).',
-    normalValues: 'LVOT VTI: 18–25 cm | LVOT diameter: 1.8–2.2 cm',
-  },
-  {
-    id: 'v6',
-    category: 'Views',
-    front: 'Subcostal View',
-    back: 'Obtained with transducer below the xiphoid process, patient supine with knees bent. Provides a unique angle to assess the pericardium (effusion/tamponade), IVC (collapsibility index for RAP estimation), right heart, and atrial septum (best view for ASD). Critical in trauma (FAST exam) and when parasternal/apical windows are poor.',
-    normalValues: 'IVC <2.1 cm with >50% collapse = RAP 3 mmHg | IVC >2.1 cm, no collapse = RAP 15 mmHg',
-  },
-  {
-    id: 'v7',
-    category: 'Views',
-    front: 'Suprasternal View',
-    back: 'Obtained with transducer in the suprasternal notch, patient with neck extended. Shows the aortic arch, proximal descending aorta, and pulmonary artery branches. Used to assess coarctation of the aorta, patent ductus arteriosus, and to measure descending aortic flow reversal in severe AR. Requires deep inspiration and careful patient positioning.',
-    normalValues: 'Normal aortic arch: no gradient across arch | Diastolic flow reversal indicates ≥moderate AR',
-  },
+export const ECHO_TOPICS = [
+  'Cardiac Anatomy',
+  '2D Echo Views',
+  'M-Mode Echocardiography',
+  'Doppler Techniques',
+  'Valvular Disease',
+  'Cardiomyopathies',
+  'Pericardial Disease',
+  'Congenital Heart Disease',
+  'LV Function & EF',
+  'RV Assessment',
+];
 
-  // MEASUREMENTS
+export const preloadedFlashcards: Flashcard[] = [
   {
-    id: 'm1',
-    category: 'Measurements',
-    front: 'LVEDD — Left Ventricular End-Diastolic Diameter',
-    back: 'Measured in PLAX view at the level of the mitral valve leaflet tips, at end-diastole (onset of QRS). Method: leading edge to leading edge (M-mode or 2D). Indicates LV size. Dilated in DCM, volume overload states (AR, MR). Normal indexed to BSA preferred in obese/large patients.',
-    normalValues: 'Women: 3.9–5.3 cm | Men: 4.2–5.9 cm | Indexed: <3.1 cm/m² (F), <3.2 cm/m² (M)',
+    id: 'ef-1',
+    front: 'Ejection Fraction (EF)',
+    back: "The percentage of blood pumped out of the left ventricle with each heartbeat. Calculated using Simpson's biplane method: EF = (EDV - ESV) / EDV × 100%. The gold standard for LV systolic function assessment.",
+    category: 'LV Function',
+    normalValues: 'Normal ≥55% | Mildly reduced 45–54% | Moderately reduced 30–44% | Severely reduced <30%',
   },
   {
-    id: 'm2',
-    category: 'Measurements',
-    front: 'LVESD — Left Ventricular End-Systolic Diameter',
-    back: 'Measured at end-systole (smallest LV cavity, peak posterior motion of posterior wall). Obtained in PLAX view by 2D or M-mode. Used to calculate fractional shortening: FS = (LVEDD - LVESD) / LVEDD × 100. LVESD >4.0 cm is a surgical threshold criterion for asymptomatic severe MR/AR.',
-    normalValues: '2.1–3.9 cm | FS = 25–43%',
-  },
-  {
-    id: 'm3',
-    category: 'Measurements',
-    front: 'IVS — Interventricular Septum Thickness',
-    back: 'Measured at end-diastole in PLAX view (M-mode or 2D). Increased in hypertensive heart disease, HCM, aortic stenosis (pressure overload), athlete\'s heart. IVS ≥15 mm suggests HCM. Asymmetric septal hypertrophy (ratio IVS:LVPW ≥1.3) is a hallmark of HCM. Must be measured perpendicular to long axis.',
-    normalValues: '0.6–1.0 cm | Mild hypertrophy: 1.1–1.3 cm | Moderate: 1.4–1.6 cm | Severe: >1.6 cm',
-  },
-  {
-    id: 'm4',
-    category: 'Measurements',
-    front: 'LVPW — Left Ventricular Posterior Wall Thickness',
-    back: 'Measured at end-diastole in PLAX view, posterior wall of LV. Symmetric thickening occurs with hypertension, AS. Asymmetric thickening (IVS > LVPW) suggests HCM. Relative wall thickness (RWT) = 2 × LVPW / LVEDD: >0.42 indicates concentric geometry. Combined with LV mass for comprehensive LV geometry assessment.',
-    normalValues: '0.6–1.0 cm | RWT >0.42 = concentric | RWT ≤0.42 = eccentric',
-  },
-  {
-    id: 'm5',
-    category: 'Measurements',
-    front: 'EF — Ejection Fraction (Simpson\'s Biplane Method)',
-    back: 'Gold standard LV systolic function measurement. Trace endocardium in A4C and A2C at end-diastole and end-systole. EDV and ESV calculated by method of discs (Simpson\'s). EF = (EDV - ESV) / EDV × 100. More accurate than linear methods (M-mode). Requires adequate endocardial definition; contrast if >2 adjacent segments not visualized.',
-    normalValues: 'Normal: ≥55% | Mildly reduced: 45–54% | Moderately reduced: 30–44% | Severely reduced: <30%',
-  },
-  {
-    id: 'm6',
-    category: 'Measurements',
-    front: 'FS — Fractional Shortening',
-    back: 'Simple M-mode measure of LV systolic function. FS = (LVEDD - LVESD) / LVEDD × 100. Quick and reproducible but reflects only basal septal and posterior wall motion — may be normal despite apical wall motion abnormality. Less accurate in asymmetric dysfunction. Still widely used in pediatrics and for rapid assessment.',
-    normalValues: '25–43% | Below 25%: systolic dysfunction | Above 43%: hyperdynamic',
-  },
-  {
-    id: 'm7',
-    category: 'Measurements',
-    front: 'LA Diameter / Volume',
-    back: 'LA anteroposterior diameter measured in PLAX (M-mode or 2D) at end-systole. LA volume (biplane method of discs using A4C and A2C) is more accurate and recommended. Enlarged in LV diastolic dysfunction, MR, MS, AF. LA volume index (LAVI) = LA volume / BSA is the preferred index. LAVI >34 mL/m² indicates LA enlargement.',
-    normalValues: 'LA diameter <4.0 cm | LAVI: Normal <34 mL/m² | Mild 34–41 | Moderate 42–48 | Severe >48 mL/m²',
-  },
-  {
-    id: 'm8',
-    category: 'Measurements',
-    front: 'Aortic Root Diameter',
-    back: 'Measured at end-diastole in PLAX view at the level of the sinuses of Valsalva using leading-edge to leading-edge method. Also measure at the sinotubular junction and ascending aorta. Enlargement seen in Marfan syndrome, bicuspid aortic valve, hypertension, aging. Surgical threshold typically 5.5 cm (or 5.0 cm in connective tissue disease).',
-    normalValues: '<3.7 cm at sinus level | Indexed: <2.1 cm/m² | Surgical threshold: >5.5 cm',
-  },
-  {
-    id: 'm9',
-    category: 'Measurements',
-    front: 'RVSP — Right Ventricular Systolic Pressure',
-    back: 'Estimated using TR jet peak velocity by CW Doppler. Formula: RVSP = 4v² + RAP (modified Bernoulli equation). RAP estimated from IVC size and collapsibility: IVC <2.1 cm + >50% collapse = 3 mmHg; IVC >2.1 cm + <50% collapse = 15 mmHg; intermediate = 8 mmHg. RVSP approximates PASP in absence of RVOT obstruction.',
-    normalValues: '<35 mmHg | Mild PH: 36–50 mmHg | Moderate PH: >50 mmHg | Severe PH: >70 mmHg',
-  },
-  {
-    id: 'm10',
-    category: 'Measurements',
-    front: 'E/A Ratio — Mitral Inflow',
-    back: 'Pulsed wave Doppler at MV leaflet tips in A4C. E wave = early passive filling velocity; A wave = late atrial contraction velocity. Normal E > A in adults <50 years. E/A reversal (E/A <1) indicates impaired relaxation (Grade I diastolic dysfunction). E/A >2 with short DT indicates restrictive filling (Grade III). Affected by preload and age.',
-    normalValues: 'E/A: 1–2 (normal) | E/A <1: Grade I | E/A >2 with short DT: Grade III | DT: 150–240 ms',
-  },
-  {
-    id: 'm11',
-    category: 'Measurements',
-    front: 'E/e\' Ratio — Diastolic Function',
-    back: 'Combines mitral inflow E wave velocity with tissue Doppler e\' velocity at the mitral annulus. E/e\' estimates LV filling pressure (LVEDP). Measured using septal and/or lateral annulus TDI. Average E/e\' (septal + lateral / 2) most accurate. E/e\' >14 suggests elevated filling pressures. Key parameter in 2016 ASE diastolic dysfunction algorithm.',
-    normalValues: 'E/e\' average <14: normal filling pressure | >14: elevated LVEDP | Septal e\' <7 cm/s, Lateral e\' <10 cm/s',
-  },
-  {
-    id: 'm12',
-    category: 'Measurements',
-    front: 'DT — Deceleration Time of E Wave',
-    back: 'Measured from peak E wave to the point where the deceleration slope intersects baseline. Reflects LV compliance and relaxation. Prolonged DT (>240 ms) indicates impaired relaxation. Short DT (<150 ms) indicates restrictive physiology (stiff LV with rapid equalization of LA-LV pressures). Used in diastolic dysfunction grading.',
-    normalValues: '150–240 ms | >240 ms: impaired relaxation | <150 ms: restrictive pattern',
-  },
-
-  // PATHOLOGY
-  {
-    id: 'p1',
-    category: 'Pathology',
-    front: 'Aortic Stenosis (AS) — Echocardiographic Assessment',
-    back: 'Assess by CW Doppler through AV from multiple windows (A5C, A3C, RV apex). Severity graded by: jet velocity, mean gradient, and AVA (by continuity equation: AVA = LVOT area × LVOT VTI / AV VTI). Valve morphology: tricuspid, bicuspid, or degenerative. Look for LV hypertrophy (pressure overload), post-stenotic aortic dilation.',
-    normalValues: 'Severe: Vmax >4 m/s | Mean gradient >40 mmHg | AVA <1.0 cm² | AVAi <0.6 cm²/m²',
-  },
-  {
-    id: 'p2',
-    category: 'Pathology',
-    front: 'Aortic Regurgitation (AR) — Echocardiographic Assessment',
-    back: 'Color Doppler: jet width in PLAX, vena contracta (≥0.6 cm = severe), and jet/LVOT ratio. PW Doppler: holodiastolic flow reversal in descending aorta (suprasternal). CW: pressure half-time (PHT <200 ms = severe, rapid pressure equalization). Indirect: LV dilation (eccentric hypertrophy), hyperdynamic LV. Acute AR: premature MV closure on M-mode.',
-    normalValues: 'Severe VC ≥0.6 cm | PHT <200 ms | Holodiastolic reversal in descending Ao | RF ≥50%',
-  },
-  {
-    id: 'p3',
-    category: 'Pathology',
-    front: 'Mitral Stenosis (MS) — Echocardiographic Assessment',
-    back: 'Parachute deformity of MV leaflets (doming, restricted opening). MVA by planimetry in PSAX (direct tracing at leaflet tips). Also by PHT method: MVA = 220 / PHT. PHT prolonged in MS (LA-LV pressure equalization slowed). Mean gradient by CW Doppler (A4C). Assess for LA enlargement, LAA thrombus, PA pressure, MV morphology (Wilkins score for intervention).',
-    normalValues: 'Severe: MVA <1.0 cm² | Mean gradient >10 mmHg | PHT >220 ms | MVA = 220/PHT',
-  },
-  {
-    id: 'p4',
-    category: 'Pathology',
-    front: 'Mitral Regurgitation (MR) — Echocardiographic Assessment',
-    back: 'Color Doppler: vena contracta (≥0.7 cm = severe), jet area (qualitative). PISA (proximal isovelocity surface area): ERO = 2πr² × aliasing velocity / peak MR velocity. EROA ≥0.4 cm² = severe. CW: dense MR signal, early systolic cutoff (acute). Mechanism: organic (MVP, flail, rheumatic) vs functional (annular dilation, tethering). Assess LV size/function.',
-    normalValues: 'Severe EROA ≥0.4 cm² | R Vol ≥60 mL | RF ≥50% | VC ≥0.7 cm | Flail = severe',
-  },
-  {
-    id: 'p5',
-    category: 'Pathology',
-    front: 'HCM — Hypertrophic Cardiomyopathy',
-    back: 'Asymmetric septal hypertrophy (ASH): IVS ≥15 mm or IVS/LVPW ratio ≥1.3. SAM (systolic anterior motion) of anterior MV leaflet creates dynamic LVOT obstruction — gradient ≥30 mmHg at rest or ≥50 mmHg with provocation is significant. Characteristic pattern: hyperdynamic LV with preserved EF, small LV cavity, MR (due to SAM). Dagger-shaped LVOT Doppler waveform (late peaking).',
-    normalValues: 'IVS ≥15 mm diagnostic | SAM with LVOT gradient ≥50 mmHg = obstructive HCM',
-  },
-  {
-    id: 'p6',
-    category: 'Pathology',
-    front: 'DCM — Dilated Cardiomyopathy',
-    back: 'Global LV dilation with reduced EF. Characteristic: dilated, spherical LV (LVEDD >5.5 cm), EF <40%. M-mode: increased EPSS (E-point to septal separation >7 mm indicates reduced EF). Functional MR and TR common due to annular dilation. Diastolic dysfunction typically present. Right heart failure can develop. Exclude ischemic etiology (wall motion abnormality pattern).',
-    normalValues: 'LVEDD >5.5 cm | EF <40% | EPSS >7 mm | Spherical LV (sphericity index >0.6)',
-  },
-  {
-    id: 'p7',
-    category: 'Pathology',
-    front: 'Cardiac Tamponade — Echocardiographic Findings',
-    back: 'Pericardial effusion + hemodynamic compromise. Key findings: (1) RA systolic collapse (free wall inverts during systole), (2) RV diastolic collapse (most specific — free wall inverts during diastole), (3) IVC plethora (dilated, non-collapsing IVC), (4) Respiratory variation >25% in MV/TV inflow (pulsus paradoxus equivalent). Swinging heart motion in large effusions.',
-    normalValues: 'RV diastolic collapse = most specific for tamponade | MV E-wave variation >25% with respiration',
-  },
-  {
-    id: 'p8',
-    category: 'Pathology',
-    front: 'Pulmonary Embolism — Echocardiographic Signs',
-    back: 'Acute PE causes RV pressure overload. Key signs: (1) McConnell\'s sign — RV free wall akinesis with preserved apical motion (specific ~77% for PE), (2) D-sign — flattening of IVS in PSAX (septal bowing toward LV due to RV-LV pressure gradient reversal), (3) dilated RV >LV, (4) elevated TR velocity (elevated RVSP), (5) 60/60 sign: PA acceleration time <60 ms + RVSP <60 mmHg.',
-    normalValues: 'McConnell\'s sign + D-sign = high specificity for acute PE | RV:LV >1 indicates significant RV strain',
-  },
-
-  // DOPPLER
-  {
-    id: 'd1',
+    id: 'doppler-1',
+    front: 'E/A Ratio',
+    back: 'The ratio of early (E) to late (A) mitral valve inflow velocities measured by pulsed-wave Doppler. E = passive early filling, A = atrial contraction. Reflects diastolic function and left atrial pressure.',
     category: 'Doppler',
-    front: 'Tissue Doppler Imaging (TDI) — Mitral Annular Velocities',
-    back: 'Pulsed wave TDI sample placed at medial (septal) and lateral mitral annulus in A4C. Measures myocardial velocity rather than blood flow. S\' = systolic annular velocity (reflects LV/RV longitudinal systolic function). e\' = early diastolic annular velocity (reflects active myocardial relaxation). a\' = late diastolic velocity (atrial contribution). Used for E/e\' ratio and GLS surrogate.',
-    normalValues: 'Septal e\' ≥8 cm/s, Lateral e\' ≥10 cm/s (normal) | Septal S\' ≥6 cm/s | RV S\' ≥9.5 cm/s (TAPSE equivalent)',
+    normalValues: 'Normal: E/A 1–2 | Grade I DD: E/A <1 (reversal) | Grade III DD: E/A >2 (restrictive)',
   },
   {
-    id: 'd2',
-    category: 'Doppler',
-    front: 'Pulsed Wave (PW) Doppler — Principles and Uses',
-    back: 'PW Doppler measures blood flow velocity at a specific location (range-gated). Range-gated by placing sample volume at site of interest. Limitation: aliasing occurs when velocity exceeds Nyquist limit. Used for: MV inflow (E/A ratio), LVOT VTI (stroke volume), pulmonary vein flow (S/D ratio, Ar wave), hepatic veins, and RVOT. Sample volume should be 1–3 mm, aligned parallel to flow.',
-    normalValues: 'PV flow: S ≥ D | Ar wave <35 cm/s | LVOT VTI 18–25 cm',
+    id: 'tamponade-1',
+    front: 'Cardiac Tamponade Echo Signs',
+    back: 'Pericardial effusion with: (1) RV diastolic collapse — most sensitive sign. (2) RA systolic collapse >1/3 of cardiac cycle. (3) IVC plethora (>2.1cm, <50% respiratory collapse). (4) Respiratory variation >25% in MV E wave, >40% in TV.',
+    category: 'Pericardial Disease',
+    normalValues: 'IVC normal: <2.1 cm with >50% inspiratory collapse (RAP 3 mmHg)',
   },
   {
-    id: 'd3',
-    category: 'Doppler',
-    front: 'Continuous Wave (CW) Doppler — Principles and Uses',
-    back: 'CW Doppler measures velocities along entire scan line — no depth discrimination but no aliasing limit. Essential for high-velocity jets exceeding PW Nyquist limit. Uses: TR velocity (RVSP), AS peak/mean gradient, MR peak velocity (EROA via PISA), AR PHT, MS mean gradient. Always attempt multiple windows (angles) to ensure parallel alignment. Modified Bernoulli: ΔP = 4v².',
-    normalValues: 'No aliasing limitation | Must be aligned <20° to flow | Modified Bernoulli: ΔP = 4v²',
+    id: 'plax-1',
+    front: 'Parasternal Long Axis (PLAX) View',
+    back: 'Standard 2D view from left parasternal window, transducer at 3rd–4th intercostal space. Shows: LV (long axis), RV outflow, mitral valve, aortic valve, aortic root, and LA. Primary view for LV dimensions and M-mode measurements.',
+    category: '2D Views',
+    normalValues: 'LVEDD: 3.9–5.9 cm | IVS/LVPW: 0.6–1.0 cm | Ao root: <3.7 cm',
   },
   {
-    id: 'd4',
-    category: 'Doppler',
-    front: 'Color Flow Doppler — Principles and Uses',
-    back: 'Displays mean velocity and direction of blood flow as color map overlaid on 2D image. Red = toward transducer (by convention BART: Blue Away, Red Toward). Aliasing indicates high velocity/turbulence. Used for: detecting regurgitation (MR, AR, TR, PR), stenosis jets, shunts (ASD, VSD). Vena contracta (narrowest jet width at regurgitant orifice) most reliable for grading severity.',
-    normalValues: 'Nyquist limit typically set at 50–70 cm/s | VC ≥0.7 cm (MR), ≥0.6 cm (AR) = severe',
+    id: 'rvsp-1',
+    front: 'RVSP Calculation',
+    back: 'Right ventricular systolic pressure estimated from tricuspid regurgitation jet velocity using the modified Bernoulli equation plus right atrial pressure (RAP). RVSP ≈ PASP in the absence of RVOT obstruction.',
+    category: 'RV Assessment',
+    normalValues: 'RVSP = 4(TRv)² + RAP | Normal RVSP <35 mmHg | RAP: IVC <2.1cm + >50% collapse = 3 mmHg',
   },
   {
-    id: 'd5',
+    id: 'as-1',
+    front: 'Severe Aortic Stenosis Criteria',
+    back: 'Severe AS is defined by: Peak aortic jet velocity >4 m/s, Mean gradient >40 mmHg, AVA <1.0 cm², AVA index <0.6 cm²/m². Calculated by continuity equation: AVA = (LVOT area × LVOT VTI) / AV VTI.',
+    category: 'Valvular Disease',
+    normalValues: 'Normal AV peak velocity <2 m/s | Mild AS: 2–3 m/s | Moderate: 3–4 m/s | Severe: >4 m/s',
+  },
+  {
+    id: 'hcm-1',
+    front: 'Hypertrophic Cardiomyopathy (HCM)',
+    back: 'Asymmetric septal hypertrophy (IVS >15mm or IVS/LVPW ratio >1.3). Key features: dynamic LVOT obstruction, systolic anterior motion (SAM) of mitral valve, dagger-shaped CW Doppler profile (late-peaking), preserved or hyperdynamic EF.',
+    category: 'Cardiomyopathies',
+    normalValues:
+      'IVS normal ≤10mm | HCM diagnosis: IVS ≥15mm (or ≥13mm with family history) | Significant LVOTO: gradient ≥30 mmHg at rest or ≥50 mmHg provoked',
+  },
+  {
+    id: 'tdi-1',
+    front: 'Tissue Doppler Imaging (TDI)',
+    back: "Measures myocardial velocities (cm/s) at the mitral annulus. e' (early diastolic velocity) reflects myocardial relaxation. E/e' ratio estimates LV filling pressures. S' wave reflects systolic function. Obtained at septal and lateral annulus.",
     category: 'Doppler',
-    front: 'Pulmonary Vein Flow Pattern',
-    back: 'PW Doppler sample in right upper pulmonary vein (A4C, posterior rotation). Normal: S wave (systolic, antegrade) ≥ D wave (diastolic, antegrade), short Ar wave (<35 cm/s, <30 ms). In elevated filling pressures: S < D (reduced systolic flow). In severe MR: systolic flow reversal. Ar wave >35 cm/s or duration >30 ms greater than A wave = elevated LVEDP.',
-    normalValues: 'Normal: S ≥ D | Ar <35 cm/s | Elevated LV filling: S < D, Ar >35 cm/s | Severe MR: S reversal',
+    normalValues:
+      "Septal e' ≥8 cm/s | Lateral e' ≥10 cm/s | E/e' average <14 (elevated >14) | Lateral S' ≥9 cm/s",
   },
 ];
 
-export const quizQuestions: QuizQuestion[] = [
+export const caseStudies: CaseStudy[] = [
   {
-    id: 'q1',
-    category: 'Normal Values',
-    question: 'What is the normal range for LVEDD in adult men?',
-    options: ['3.5–4.5 cm', '4.2–5.9 cm', '3.9–5.3 cm', '5.0–6.5 cm'],
-    correctIndex: 1,
-    explanation: 'In adult men, the normal LVEDD (LV end-diastolic diameter) is 4.2–5.9 cm. For women, it is slightly smaller at 3.9–5.3 cm. Values should ideally be indexed to body surface area.',
+    id: 'dcm',
+    title: 'Dilated Cardiomyopathy',
+    subtitle: '58-year-old male, progressive dyspnea',
+    difficulty: 'Intermediate',
+    difficultyColor: 'text-amber-500 bg-amber-50 border-amber-200',
+    icon: '🫀',
+    patient:
+      '58-year-old male presenting with 3-month history of progressive dyspnea on exertion, orthopnea, and bilateral leg swelling. Past medical history: hypertension, type 2 diabetes. No prior cardiac history.',
+    history:
+      'NYHA Class III heart failure symptoms. BNP elevated at 1,240 pg/mL. CXR shows cardiomegaly and pulmonary vascular congestion.',
+    echoFindings: [
+      'LVEDD 7.2 cm (severely dilated)',
+      'LVESD 6.1 cm',
+      "EF 20% by Simpson's biplane",
+      'Global hypokinesis — all walls affected',
+      'Functional mitral regurgitation (moderate) — annular dilation',
+      'LA severely dilated (volume index 48 mL/m²)',
+      'E/A ratio 2.4 with DT 140 ms — restrictive filling pattern',
+      "E/e' = 22 — elevated filling pressures",
+      'RVSP 52 mmHg — moderate pulmonary hypertension',
+      'TAPSE 14 mm — mildly reduced RV function',
+    ],
+    keyQuestion:
+      'What is the most likely diagnosis and what echo finding best predicts prognosis in this patient?',
+    diagnosis:
+      'Non-ischemic dilated cardiomyopathy with severely reduced EF (20%) and restrictive filling pattern.',
+    teachingPoints: [
+      'Restrictive filling pattern (Grade III diastolic dysfunction) carries the worst prognosis in DCM',
+      'Functional MR in DCM is due to annular dilation and papillary muscle displacement — not primary valve disease',
+      'RVSP elevation and RV dysfunction indicate advanced disease and poor prognosis',
+      'EF <35% with LBBB morphology: consider CRT (cardiac resynchronization therapy)',
+      'Serial echo every 3–6 months to monitor response to GDMT (guideline-directed medical therapy)',
+    ],
+    systemPrompt:
+      "You are an expert cardiologist and echocardiographer teaching a student about a case of dilated cardiomyopathy. The case: 58yo male, EF 20%, LVEDD 7.2cm, global hypokinesis, functional MR, restrictive filling (E/A 2.4, DT 140ms, E/e' 22), RVSP 52 mmHg, TAPSE 14mm. Answer questions clearly and educationally. Relate answers back to the specific echo findings in this case. Keep responses concise but thorough.",
   },
   {
-    id: 'q2',
-    category: 'Normal Values',
-    question: 'What EF value defines preserved systolic function?',
-    options: ['≥40%', '≥45%', '≥55%', '≥65%'],
-    correctIndex: 2,
-    explanation: 'Normal LV ejection fraction is ≥55% by ASE guidelines. An EF of 45–54% is mildly reduced, 30–44% is moderately reduced, and <30% is severely reduced. HFpEF is defined as EF ≥50%.',
+    id: 'hocm',
+    title: 'Hypertrophic Obstructive CM',
+    subtitle: '34-year-old female, exertional syncope',
+    difficulty: 'Advanced',
+    difficultyColor: 'text-red-500 bg-red-50 border-red-200',
+    icon: '⚡',
+    patient:
+      '34-year-old female athlete with exertional syncope and a harsh systolic murmur that increases with Valsalva. Family history: brother died suddenly at age 28.',
+    history: 'No prior cardiac workup. ECG shows LVH with deep septal Q waves. Referred for echocardiogram.',
+    echoFindings: [
+      'IVS 22mm — severe asymmetric septal hypertrophy',
+      'LVPW 11mm — posterior wall relatively spared',
+      'IVS/LVPW ratio 2.0 — asymmetric pattern',
+      'EF 75% — hyperdynamic',
+      'Systolic anterior motion (SAM) of anterior MV leaflet',
+      'LVOT gradient 85 mmHg at rest — severe obstruction',
+      'Dagger-shaped CW Doppler LVOT profile (late peaking)',
+      'Moderate mitral regurgitation — posteriorly directed (from SAM)',
+      'LA moderately dilated',
+      'No pericardial effusion',
+    ],
+    keyQuestion:
+      'What is the mechanism of LVOT obstruction in this patient, and what maneuvers would increase vs. decrease the gradient?',
+    diagnosis:
+      'Hypertrophic obstructive cardiomyopathy (HOCM) with severe resting LVOT obstruction (85 mmHg) and SAM-related MR.',
+    teachingPoints: [
+      'SAM of the mitral valve causes dynamic LVOT obstruction — the anterior MV leaflet is pulled into the LVOT during systole by Venturi forces and flow drag',
+      'Gradient INCREASES with: Valsalva, standing, dehydration, tachycardia, vasodilators',
+      'Gradient DECREASES with: squatting, leg raise, beta-blockers, phenylephrine, increased preload',
+      'Dagger-shaped (late-peaking) CW profile distinguishes HOCM from fixed LVOT obstruction',
+      'MR in HOCM is posteriorly directed (opposite to typical degenerative MR) due to SAM mechanism',
+      'Sudden cardiac death risk: consider ICD if prior cardiac arrest, family history SCD, massive hypertrophy (≥30mm), NSVT, abnormal BP response to exercise',
+    ],
+    systemPrompt:
+      'You are an expert cardiologist teaching about a case of hypertrophic obstructive cardiomyopathy (HOCM). The case: 34yo female athlete with exertional syncope, IVS 22mm, EF 75%, SAM of MV, LVOT gradient 85 mmHg at rest, moderate posteriorly-directed MR, family history of sudden cardiac death. Focus on the dynamic obstruction mechanism, provocative maneuvers, and management. Be educational and relate answers to the specific findings.',
   },
   {
-    id: 'q3',
-    category: 'Views',
-    question: 'Which view is BEST for directly measuring MVA by planimetry?',
-    options: ['Apical 4-Chamber', 'Parasternal Long Axis', 'Parasternal Short Axis at MV level', 'Subcostal 4-Chamber'],
-    correctIndex: 2,
-    explanation: 'The PSAX (Parasternal Short Axis) view at the mitral valve level provides a "fish-mouth" cross-sectional view of the MV orifice, allowing direct planimetry of the MVA. This is the most accurate direct measurement method.',
-  },
-  {
-    id: 'q4',
-    category: 'Pathology',
-    question: 'A patient has an AV peak velocity of 4.5 m/s. Which severity grade of aortic stenosis does this represent?',
-    options: ['Mild (AV peak velocity 2.0–3.0 m/s)', 'Moderate (AV peak velocity 3.0–4.0 m/s)', 'Severe (AV peak velocity >4.0 m/s)', 'Very Severe (AV peak velocity >5.0 m/s)'],
-    correctIndex: 2,
-    explanation: 'An AV peak velocity >4.0 m/s defines severe aortic stenosis. Mild AS has peak velocity 2.0–3.0 m/s, moderate 3.0–4.0 m/s. Very severe (also called "critical") AS is sometimes defined as >5.0 m/s, but the standard severe threshold is >4.0 m/s.',
-  },
-  {
-    id: 'q5',
-    category: 'Formulas',
-    question: 'Using the modified Bernoulli equation, what is the estimated pressure gradient across a valve with a peak velocity of 3 m/s?',
-    options: ['9 mmHg', '18 mmHg', '36 mmHg', '72 mmHg'],
-    correctIndex: 2,
-    explanation: 'Modified Bernoulli equation: ΔP = 4v². Therefore: ΔP = 4 × (3)² = 4 × 9 = 36 mmHg. This equation simplifies the full Bernoulli equation by assuming proximal velocity is negligible (<1 m/s).',
-  },
-  {
-    id: 'q6',
-    category: 'Formulas',
-    question: 'How is RVSP calculated from echocardiography?',
-    options: ['RVSP = 2v² + RAP', 'RVSP = 4v² + RAP', 'RVSP = 4v² − RAP', 'RVSP = 4(v1² − v2²) + RAP'],
-    correctIndex: 1,
-    explanation: 'RVSP = 4v² + RAP, where v = peak TR velocity (m/s) measured by CW Doppler, and RAP = right atrial pressure estimated from IVC size and collapsibility. In the absence of pulmonic stenosis or RVOT obstruction, RVSP ≈ PASP.',
-  },
-  {
-    id: 'q7',
-    category: 'Normal Values',
-    question: 'Which E/e\' average ratio is indicative of elevated LV filling pressures?',
-    options: ['E/e\' < 8', 'E/e\' 8–13', 'E/e\' > 14', 'E/e\' > 20'],
-    correctIndex: 2,
-    explanation: 'E/e\' average (septal and lateral) >14 suggests elevated LV filling pressures (elevated LVEDP). Values ≤8 suggest normal filling pressures. Values 9–13 are indeterminate. This is a key parameter in the 2016 ASE diastolic dysfunction grading algorithm.',
-  },
-  {
-    id: 'q8',
-    category: 'Pathology',
-    question: 'McConnell\'s sign on echocardiography refers to:',
-    options: ['Flattening of the IVS in PSAX view', 'Systolic anterior motion of the MV', 'RV free wall akinesis with preserved apical motion', 'Diastolic collapse of the RV free wall'],
-    correctIndex: 2,
-    explanation: 'McConnell\'s sign is RV free wall akinesis with preserved or paradoxically hyperdynamic RV apical motion. This pattern is relatively specific for acute pulmonary embolism (~77% specificity). It occurs because the RV apex is partially "tethered" to the LV and thus preserved despite the rest of the RV being ischemic/stunned.',
-  },
-  {
-    id: 'q9',
-    category: 'Pathology',
-    question: 'Which finding is MOST specific for cardiac tamponade?',
-    options: ['Large pericardial effusion', 'RA systolic free wall collapse', 'RV diastolic free wall collapse', 'IVC plethora without respiratory variation'],
-    correctIndex: 2,
-    explanation: 'RV diastolic free wall collapse (the RV free wall inverts during diastole) is the most specific echocardiographic sign of cardiac tamponade. While RA systolic collapse is more sensitive, it is less specific (can occur with right heart volume depletion). RV diastolic collapse is highly specific because diastole is the period of highest RV vulnerability to external compression.',
-  },
-  {
-    id: 'q10',
-    category: 'Views',
-    question: 'In the apical 4-chamber view, which two chambers are ABSENT compared to A4C?',
-    options: ['LV and RV', 'LA and RA', 'RV and RA', 'LV and LA'],
-    correctIndex: 2,
-    explanation: 'The Apical 2-Chamber (A2C) view shows only the LV and LA. The RV and RA are absent. This view is obtained by rotating the transducer approximately 60° counterclockwise from the A4C position. It\'s used paired with A4C for biplane EF calculation.',
-  },
-  {
-    id: 'q11',
-    category: 'Normal Values',
-    question: 'What is the normal IVS (interventricular septum) thickness at end-diastole?',
-    options: ['0.3–0.5 cm', '0.6–1.0 cm', '1.0–1.5 cm', '0.8–1.2 cm'],
-    correctIndex: 1,
-    explanation: 'Normal IVS thickness at end-diastole is 0.6–1.0 cm. Values of 1.1–1.3 cm indicate mild hypertrophy, 1.4–1.6 cm moderate, and >1.6 cm severe hypertrophy. An IVS ≥1.5 cm is a diagnostic criterion for HCM.',
-  },
-  {
-    id: 'q12',
-    category: 'Doppler',
-    question: 'What does a prolonged pressure half-time (PHT >220 ms) indicate on mitral valve Doppler?',
-    options: ['Severe mitral regurgitation', 'Mitral stenosis', 'Elevated LV filling pressures', 'Normal mitral valve function'],
-    correctIndex: 1,
-    explanation: 'Prolonged PHT (>220 ms) at the mitral valve is consistent with mitral stenosis. The PHT method estimates MVA = 220 / PHT. In MS, the LA-LV pressure gradient equalizes slowly due to reduced valve area, resulting in slow E-wave deceleration and prolonged PHT.',
-  },
-  {
-    id: 'q13',
-    category: 'Pathology',
-    question: 'Which echocardiographic feature is characteristic of HCM with LVOT obstruction?',
-    options: ['Dilated LV with reduced EF', 'Systolic anterior motion (SAM) of the mitral valve', 'Diastolic collapse of the RV free wall', 'Holodiastolic flow reversal in the descending aorta'],
-    correctIndex: 1,
-    explanation: 'Systolic Anterior Motion (SAM) of the anterior mitral valve leaflet is the hallmark of obstructive HCM. The elongated anterior MV leaflet is drawn into the LVOT during systole by Venturi forces and high-velocity flow, causing dynamic obstruction. This also results in MR (posteriorly directed jet). LVOT gradient ≥30 mmHg at rest or ≥50 mmHg with provocation confirms obstructive HCM.',
-  },
-  {
-    id: 'q14',
-    category: 'Formulas',
-    question: 'The AVA continuity equation is: AVA = LVOT area × LVOT VTI / AV VTI. If LVOT diameter = 2.0 cm, LVOT VTI = 20 cm, AV VTI = 80 cm, what is the AVA?',
-    options: ['0.78 cm²', '0.98 cm²', '1.57 cm²', '2.0 cm²'],
-    correctIndex: 0,
-    explanation: 'LVOT area = π × (d/2)² = π × 1² = 3.14 cm². AVA = 3.14 × 20 / 80 = 3.14 × 0.25 = 0.785 cm². This is <1.0 cm², confirming severe aortic stenosis. The most common error is forgetting to calculate the LVOT area from diameter (squaring the radius).',
-  },
-  {
-    id: 'q15',
-    category: 'Normal Values',
-    question: 'What is the normal range for deceleration time (DT) of the mitral E wave?',
-    options: ['80–140 ms', '150–240 ms', '200–300 ms', '250–400 ms'],
-    correctIndex: 1,
-    explanation: 'Normal mitral E wave deceleration time is 150–240 ms. DT <150 ms suggests restrictive filling (rapid LV pressure rise with stiff LV). DT >240 ms indicates impaired relaxation. These patterns are key components of diastolic dysfunction grading.',
-  },
-  {
-    id: 'q16',
-    category: 'Pathology',
-    question: 'A patient with aortic regurgitation has a PHT of 150 ms. What severity does this suggest?',
-    options: ['Mild AR', 'Moderate AR', 'Severe AR — rapid equilibration of pressures', 'Normal — this is expected'],
-    correctIndex: 2,
-    explanation: 'In aortic regurgitation, a short PHT <200 ms indicates severe AR. This occurs because with a large regurgitant orifice, aortic and LV diastolic pressures equilibrate rapidly, shortening the pressure half-time. PHT >500 ms suggests mild AR.',
-  },
-  {
-    id: 'q17',
-    category: 'Views',
-    question: 'Which echocardiographic view provides the best assessment of the interatrial septum for ASD?',
-    options: ['Apical 4-Chamber', 'Parasternal Long Axis', 'Subcostal 4-Chamber', 'Suprasternal'],
-    correctIndex: 2,
-    explanation: 'The subcostal 4-chamber view provides the best visualization of the interatrial septum because the ultrasound beam is nearly perpendicular to the septum, minimizing dropout artifact. In other views (especially A4C), the septum is parallel to the beam, making it susceptible to false dropout and apparent "holes."',
-  },
-  {
-    id: 'q18',
-    category: 'Doppler',
-    question: 'In pulsed wave Doppler, what phenomenon limits measurement of high-velocity flows?',
-    options: ['Angle dependence', 'Aliasing (Nyquist limit)', 'Gate size interference', 'Wall filter artifact'],
-    correctIndex: 1,
-    explanation: 'Aliasing occurs when the blood flow velocity exceeds the Nyquist limit (half the pulse repetition frequency). The signal "wraps around" and displays in the opposite direction. CW Doppler avoids this limitation by continuously transmitting and receiving, allowing measurement of any velocity without aliasing.',
-  },
-  {
-    id: 'q19',
-    category: 'Normal Values',
-    question: 'What is the normal septal e\' velocity by tissue Doppler imaging?',
-    options: ['≥4 cm/s', '≥6 cm/s', '≥8 cm/s', '≥12 cm/s'],
-    correctIndex: 2,
-    explanation: 'Normal septal e\' velocity is ≥8 cm/s. Lateral e\' is higher at ≥10 cm/s. Reduced e\' (septal <8 cm/s, lateral <10 cm/s) indicates impaired myocardial relaxation and is a sign of diastolic dysfunction. These values are used to calculate E/e\' ratio for estimating filling pressures.',
-  },
-  {
-    id: 'q20',
-    category: 'Pathology',
-    question: 'The D-sign on parasternal short axis view indicates:',
-    options: ['Dilated cardiomyopathy', 'Right ventricular pressure or volume overload causing IVS flattening', 'Left bundle branch block', 'Severe mitral stenosis'],
-    correctIndex: 1,
-    explanation: 'The D-sign refers to flattening of the interventricular septum in PSAX view, making the LV appear D-shaped rather than circular. This occurs with RV pressure overload (e.g., pulmonary hypertension, acute PE — D-shape in systole) or volume overload (D-shape in diastole). It indicates interventricular interaction where elevated RV pressure pushes the IVS into the LV.',
-  },
-  {
-    id: 'q21',
-    category: 'Normal Values',
-    question: 'What is the normal aortic root diameter at the sinuses of Valsalva?',
-    options: ['<2.5 cm', '<3.0 cm', '<3.7 cm', '<4.5 cm'],
-    correctIndex: 2,
-    explanation: 'The normal aortic root diameter at the sinuses of Valsalva is <3.7 cm. Values >4.0 cm are mildly enlarged, >4.5 cm moderately enlarged. Surgical intervention is typically considered at >5.5 cm (or >5.0 cm in bicuspid AV or connective tissue disease).',
-  },
-  {
-    id: 'q22',
-    category: 'Pathology',
-    question: 'What EROA (effective regurgitant orifice area) indicates severe mitral regurgitation?',
-    options: ['≥0.1 cm²', '≥0.2 cm²', '≥0.3 cm²', '≥0.4 cm²'],
-    correctIndex: 3,
-    explanation: 'EROA ≥0.4 cm² defines severe mitral regurgitation. EROA <0.2 cm² is mild, 0.2–0.39 cm² is moderate. EROA is calculated using the PISA method: EROA = 2πr² × aliasing velocity / peak MR velocity. It represents the size of the "hole" through which blood leaks back from LV to LA.',
-  },
-  {
-    id: 'q23',
-    category: 'Views',
-    question: 'Which view is obtained by rotating 90° clockwise from the parasternal long axis?',
-    options: ['Apical 4-Chamber', 'Parasternal Short Axis', 'Subcostal 4-Chamber', 'Apical 2-Chamber'],
-    correctIndex: 1,
-    explanation: 'The Parasternal Short Axis (PSAX) is obtained by rotating the transducer 90° clockwise from the PLAX position while keeping it in the left parasternal window. This gives cross-sectional views of the heart. The level can be adjusted by tilting the transducer from base (AV level) to apex.',
-  },
-  {
-    id: 'q24',
-    category: 'Doppler',
-    question: 'Holodiastolic flow reversal in the descending thoracic aorta (seen from suprasternal view) suggests:',
-    options: ['Aortic stenosis', 'At least moderate-to-severe aortic regurgitation', 'Patent ductus arteriosus', 'Aortic coarctation'],
-    correctIndex: 1,
-    explanation: 'Holodiastolic flow reversal in the descending aorta indicates significant AR (at least moderate-severe). During diastole, the high pressure in the aorta drives blood back through the incompetent AV into the LV, and this retrograde flow can be detected throughout the entire aortic tree. PDA would cause diastolic flow from aorta into PA, not reversal.',
-  },
-  {
-    id: 'q25',
-    category: 'Normal Values',
-    question: 'What is the normal fractional shortening (FS) range?',
-    options: ['10–20%', '15–25%', '25–43%', '45–60%'],
-    correctIndex: 2,
-    explanation: 'Normal fractional shortening is 25–43%. FS = (LVEDD - LVESD) / LVEDD × 100%. Values below 25% suggest LV systolic dysfunction. Values above 43% may indicate a hyperdynamic state (sepsis, volume depletion) or measurement error (concentric LV geometry).',
-  },
-  {
-    id: 'q26',
-    category: 'Pathology',
-    question: 'In DCM, what M-mode finding is a quick surrogate for reduced EF?',
-    options: ['Increased LVPW thickness', 'Elevated EPSS (E-point to septal separation)', 'Shortened DT', 'SAM of mitral valve'],
-    correctIndex: 1,
-    explanation: 'EPSS (E-point to septal separation) measures the distance between the peak E-point of the anterior MV leaflet and the IVS on M-mode. EPSS >7 mm suggests reduced EF. In DCM, the dilated, poorly contracting LV keeps the MV leaflets farther from the septum. Normal EPSS is <7 mm.',
-  },
-  {
-    id: 'q27',
-    category: 'Formulas',
-    question: 'How is fractional shortening calculated?',
-    options: ['(LVEDD + LVESD) / LVEDD × 100', '(LVEDD − LVESD) / LVEDD × 100', '(EDV − ESV) / EDV × 100', '(LVPW + IVS) / 2'],
-    correctIndex: 1,
-    explanation: 'FS = (LVEDD − LVESD) / LVEDD × 100%. For example, if LVEDD = 5.0 cm and LVESD = 3.5 cm: FS = (5.0 − 3.5) / 5.0 × 100 = 30%. This is a linear method using M-mode dimensions and assumes the LV contracts symmetrically.',
-  },
-  {
-    id: 'q28',
-    category: 'Normal Values',
-    question: 'What is the normal IVC diameter that suggests a low right atrial pressure (3 mmHg)?',
-    options: ['IVC >2.5 cm with normal collapse', 'IVC <2.1 cm with >50% inspiratory collapse', 'IVC 2.1–2.5 cm with 50% collapse', 'IVC >2.1 cm with <50% collapse'],
-    correctIndex: 1,
-    explanation: 'IVC <2.1 cm diameter with >50% inspiratory collapse (sniff test) estimates RAP of 3 mmHg. IVC >2.1 cm with <50% collapse estimates RAP of 15 mmHg. Intermediate values suggest RAP of 8 mmHg. These are used in the RVSP = 4v² + RAP formula.',
-  },
-  {
-    id: 'q29',
-    category: 'Pathology',
-    question: 'What is the echocardiographic hallmark of asymmetric septal hypertrophy (ASH) in HCM?',
-    options: ['IVS/LVPW ratio ≥1.3', 'LVEDD >6.0 cm', 'EF <40%', 'IVS ≥2.0 cm in all cases'],
-    correctIndex: 0,
-    explanation: 'Asymmetric septal hypertrophy is defined as IVS/LVPW ratio ≥1.3 (some criteria use ≥1.5). This disproportionate thickening of the septum compared to the posterior wall is a hallmark of HCM. Absolute IVS ≥15 mm is also a diagnostic criterion. The pattern distinguishes HCM from concentric LVH (hypertension, AS) where thickening is symmetric.',
-  },
-  {
-    id: 'q30',
-    category: 'Doppler',
-    question: 'In color flow Doppler, according to the BART convention, what does the color BLUE represent?',
-    options: ['Flow toward the transducer', 'High velocity turbulent flow', 'Flow away from the transducer', 'Aliasing artifact'],
-    correctIndex: 2,
-    explanation: 'BART = Blue Away, Red Toward. Blue indicates flow moving AWAY from the transducer, while Red indicates flow moving TOWARD the transducer. This is important for interpreting regurgitation jets and stenotic flows. Aliasing appears as a mosaic of colors when flow velocity exceeds the Nyquist limit.',
-  },
-  {
-    id: 'q31',
-    category: 'Normal Values',
-    question: 'What normal value defines the upper limit of LA diameter?',
-    options: ['3.5 cm', '4.0 cm', '4.5 cm', '5.0 cm'],
-    correctIndex: 1,
-    explanation: 'The upper limit of normal LA anteroposterior diameter is 4.0 cm. However, LA volume index (LAVI) ≥34 mL/m² is the preferred measure for LA enlargement assessment, as diameter underestimates volume with asymmetric dilation. LA enlargement is seen in diastolic dysfunction, MR, MS, and atrial fibrillation.',
-  },
-  {
-    id: 'q32',
-    category: 'Pathology',
-    question: 'Which finding distinguishes acute from chronic severe aortic regurgitation on echocardiography?',
-    options: ['Holodiastolic flow reversal in aorta', 'Premature closure of the mitral valve (before end of diastole)', 'Large, dilated LV with eccentric hypertrophy', 'Dense, complete AR signal on CW Doppler'],
-    correctIndex: 1,
-    explanation: 'Premature mitral valve closure (before end of diastole) on M-mode is a sign of acute severe AR. The sudden large regurgitant volume rapidly elevates LVEDP, which closes the MV before atrial contraction ends. Chronic severe AR causes progressive LV dilation and eccentric hypertrophy (time for adaptation), which is NOT present in acute AR.',
+    id: 'endocarditis',
+    title: 'Infective Endocarditis',
+    subtitle: '45-year-old male, fever + new murmur',
+    difficulty: 'Beginner',
+    difficultyColor: 'text-emerald-500 bg-emerald-50 border-emerald-200',
+    icon: '🔬',
+    patient:
+      '45-year-old male IV drug user presenting with 2-week fever, night sweats, and a new holosystolic murmur. Blood cultures positive for Staph aureus (2 of 2 bottles).',
+    history:
+      'Temperature 38.9°C. WBC 18,000. CRP elevated. No prior cardiac history. Referred for urgent echocardiogram.',
+    echoFindings: [
+      'Tricuspid valve: large oscillating vegetation (1.8 cm) on anterior leaflet',
+      'Severe tricuspid regurgitation — flail leaflet component',
+      'RA and RV moderately dilated',
+      'RVSP 42 mmHg — mild pulmonary hypertension',
+      'Aortic and mitral valves appear normal',
+      'No perivalvular abscess identified on TTE (TEE recommended)',
+      'No pericardial effusion',
+      'TAPSE 18mm — preserved RV function',
+      'LV size and function normal (EF 60%)',
+    ],
+    keyQuestion:
+      'Which echo modality should be performed next, and what complications are you specifically looking for?',
+    diagnosis:
+      'Right-sided infective endocarditis (tricuspid valve) with large vegetation, likely secondary to IV drug use.',
+    teachingPoints: [
+      'Right-sided endocarditis is classic in IV drug users — tricuspid valve most commonly affected',
+      'TEE is more sensitive than TTE for: perivalvular abscess (80–90% vs 30–50% sensitivity), small vegetations, prosthetic valve endocarditis',
+      'Duke criteria: 2 major (positive blood cultures + echo evidence) = Definite IE',
+      'Large vegetations (>10mm) carry higher embolic risk — but right-sided emboli go to lungs (septic pulmonary emboli), not systemic circulation',
+      'Indications for surgery: heart failure, perivalvular extension/abscess, uncontrolled infection, large mobile vegetations with recurrent emboli',
+      'TEE recommended for all cases of suspected IE to rule out complications not seen on TTE',
+    ],
+    systemPrompt:
+      'You are an expert cardiologist and infectious disease specialist teaching about a case of right-sided infective endocarditis. The case: 45yo male IVDU, Staph aureus bacteremia, large TV vegetation (1.8cm), severe TR, flail leaflet, RVSP 42 mmHg. Focus on Duke criteria, echo modality selection (TTE vs TEE), surgical indications, and complications. Be educational and approachable.',
   },
 ];

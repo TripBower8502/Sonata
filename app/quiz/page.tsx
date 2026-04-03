@@ -1,336 +1,521 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { quizQuestions } from '@/lib/data';
-import QuizQuestionComponent from '@/components/QuizQuestion';
+import { useState, useEffect, useRef } from 'react';
+import { ECHO_TOPICS } from '@/lib/data';
 
-type QuizPhase = 'setup' | 'playing' | 'results';
+type Phase = 'setup' | 'loading' | 'playing' | 'results';
 
-const ALL_CATEGORIES = ['All', ...Array.from(new Set(quizQuestions.map(q => q.category)))];
-const QUESTIONS_PER_SESSION = 20;
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
 
-export default function QuizPage() {
-  const [phase, setPhase] = useState<QuizPhase>('setup');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sessionQuestions, setSessionQuestions] = useState(quizQuestions.slice(0, QUESTIONS_PER_SESSION));
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [totalStats, setTotalStats] = useState({ correct: 0, answered: 0, quizzes: 0 });
+interface AnswerRecord {
+  question: QuizQuestion;
+  selectedIndex: number;
+  correct: boolean;
+}
 
-  useEffect(() => {
+const OPTION_LABELS = ['A', 'B', 'C', 'D'];
+
+function saveScore(topic: string, score: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = `sonata-best-${topic.toLowerCase().replace(/\s+/g, '-')}`;
+    const existing = parseInt(localStorage.getItem(key) || '0', 10);
+    if (score > existing) localStorage.setItem(key, String(score));
+
+    const overall = parseInt(localStorage.getItem('sonata-best-overall') || '0', 10);
+    if (score > overall) localStorage.setItem('sonata-best-overall', String(score));
+
+    // update stats
+    const raw = localStorage.getItem('sonata-stats');
+    const stats = raw ? JSON.parse(raw) : {};
+    stats.quizzesTaken = (stats.quizzesTaken || 0) + 1;
+    stats.lastStudied = new Date().toDateString();
+    localStorage.setItem('sonata-stats', JSON.stringify(stats));
+  } catch {
+    // ignore
+  }
+}
+
+// ── Explanation card (streaming) ─────────────────────────────────────────────
+function ExplanationCard({ record }: { record: AnswerRecord }) {
+  const [explanation, setExplanation] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchExplanation = async () => {
+    if (explanation) {
+      setOpen(!open);
+      return;
+    }
+    setOpen(true);
+    setLoading(true);
+    setError('');
     try {
-      const s = localStorage.getItem('sonata-stats');
-      if (s) {
-        const parsed = JSON.parse(s);
-        setTotalStats({
-          correct: parsed.totalCorrect || 0,
-          answered: parsed.totalAnswered || 0,
-          quizzes: parsed.quizzesTaken || 0,
-        });
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'explanation',
+          question: record.question.question,
+          correctAnswer: record.question.options[record.question.correctIndex],
+          userAnswer: record.question.options[record.selectedIndex],
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to fetch explanation');
       }
-    } catch { /* ignore */ }
-  }, []);
-
-  const startQuiz = useCallback(() => {
-    const pool = selectedCategory === 'All'
-      ? quizQuestions
-      : quizQuestions.filter(q => q.category === selectedCategory);
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(QUESTIONS_PER_SESSION, shuffled.length));
-    setSessionQuestions(selected);
-    setAnswers(new Array(selected.length).fill(null));
-    setCurrentIndex(0);
-    setShowExplanation(false);
-    setPhase('playing');
-  }, [selectedCategory]);
-
-  const handleAnswer = (index: number) => {
-    const newAnswers = [...answers];
-    newAnswers[currentIndex] = index;
-    setAnswers(newAnswers);
-    setShowExplanation(true);
-  };
-
-  const handleNext = () => {
-    if (currentIndex < sessionQuestions.length - 1) {
-      setCurrentIndex(i => i + 1);
-      setShowExplanation(false);
-    } else {
-      const correct = answers.filter((a, i) => a === sessionQuestions[i].correctIndex).length;
-      const total = sessionQuestions.length;
-      try {
-        const s = localStorage.getItem('sonata-stats');
-        const stats = s ? JSON.parse(s) : {};
-        const today = new Date().toDateString();
-        const wasToday = stats.lastStudied === today;
-        const wasYesterday = stats.lastStudied === new Date(Date.now() - 86400000).toDateString();
-        const newStats = {
-          ...stats,
-          quizzesTaken: (stats.quizzesTaken || 0) + 1,
-          totalCorrect: (stats.totalCorrect || 0) + correct,
-          totalAnswered: (stats.totalAnswered || 0) + total,
-          streak: wasToday ? (stats.streak || 1) : (wasYesterday ? (stats.streak || 0) + 1 : 1),
-          lastStudied: today,
-        };
-        localStorage.setItem('sonata-stats', JSON.stringify(newStats));
-        setTotalStats({ correct: newStats.totalCorrect, answered: newStats.totalAnswered, quizzes: newStats.quizzesTaken });
-      } catch { /* ignore */ }
-      setPhase('results');
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No response stream');
+      const decoder = new TextDecoder();
+      let accumulated = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setExplanation(accumulated);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const sessionScore = answers.filter((a, i) => a !== null && a === sessionQuestions[i].correctIndex).length;
-  const sessionAnswered = answers.filter(a => a !== null).length;
-
-  if (phase === 'setup') {
-    return (
-      <div className="page-enter min-h-screen bg-navy-900">
-        <div
-          className="px-5 pt-4 pb-5 border-b border-pink-100 bg-white"
-          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
-        >
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Quiz Mode</h1>
-          <p className="text-gray-400 text-sm">Test your echocardiography knowledge</p>
-        </div>
-
-        <div className="px-5 py-5">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-white border border-pink-100 rounded-2xl p-3 text-center shadow-sm">
-              <div className="text-xl font-bold text-violet-500">{totalStats.quizzes}</div>
-              <div className="text-[10px] text-gray-400 font-medium mt-0.5">Quizzes</div>
-            </div>
-            <div className="bg-white border border-pink-100 rounded-2xl p-3 text-center shadow-sm">
-              <div className="text-xl font-bold text-emerald-500">{totalStats.correct}</div>
-              <div className="text-[10px] text-gray-400 font-medium mt-0.5">Correct</div>
-            </div>
-            <div className="bg-white border border-pink-100 rounded-2xl p-3 text-center shadow-sm">
-              <div className="text-xl font-bold text-pink-500">
-                {totalStats.answered > 0 ? Math.round((totalStats.correct / totalStats.answered) * 100) : 0}%
-              </div>
-              <div className="text-[10px] text-gray-400 font-medium mt-0.5">Accuracy</div>
-            </div>
-          </div>
-
-          {/* Category select */}
-          <div className="mb-6">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Filter by Category</h2>
-            <div className="space-y-2">
-              {ALL_CATEGORIES.map(cat => {
-                const count = cat === 'All' ? quizQuestions.length : quizQuestions.filter(q => q.category === cat).length;
-                const isSelected = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
-                      isSelected
-                        ? 'bg-pink-50 border-pink-300 text-pink-600'
-                        : 'bg-white border-pink-100 text-gray-700 hover:border-pink-200'
-                    }`}
-                  >
-                    <span className="font-semibold text-sm">{cat}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">{count} questions</span>
-                      {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Start button */}
-          <button
-            onClick={startQuiz}
-            className="w-full py-4 rounded-2xl bg-pink-500 text-white font-bold text-base active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-sm"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-            Start Quiz ({Math.min(QUESTIONS_PER_SESSION, selectedCategory === 'All' ? quizQuestions.length : quizQuestions.filter(q => q.category === selectedCategory).length)} questions)
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'results') {
-    const correct = answers.filter((a, i) => a === sessionQuestions[i].correctIndex).length;
-    const total = sessionQuestions.length;
-    const pct = Math.round((correct / total) * 100);
-    const grade = pct >= 90 ? 'Excellent!' : pct >= 75 ? 'Great Job!' : pct >= 60 ? 'Good Effort' : 'Keep Practicing';
-    const gradeColor = pct >= 90 ? 'text-pink-500' : pct >= 75 ? 'text-emerald-500' : pct >= 60 ? 'text-amber-500' : 'text-red-400';
-    const arcColor = pct >= 90 ? '#ec4899' : pct >= 75 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
-
-    return (
-      <div className="page-enter min-h-screen bg-navy-900">
-        <div
-          className="px-5 pt-4 pb-5 border-b border-pink-100 bg-white"
-          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
-        >
-          <h1 className="text-xl font-bold text-gray-900">Quiz Results</h1>
-        </div>
-
-        <div className="px-5 py-6">
-          {/* Score circle */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-32 h-32 flex items-center justify-center mb-3 relative">
-              <svg className="absolute inset-0" width="128" height="128" viewBox="0 0 128 128">
-                <circle cx="64" cy="64" r="58" fill="none" stroke="#fce7f3" strokeWidth="8" />
-                <circle
-                  cx="64" cy="64" r="58" fill="none"
-                  stroke={arcColor}
-                  strokeWidth="8"
-                  strokeDasharray={`${2 * Math.PI * 58 * pct / 100} ${2 * Math.PI * 58 * (1 - pct / 100)}`}
-                  strokeDashoffset={2 * Math.PI * 58 * 0.25}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="text-center z-10">
-                <div className="text-3xl font-bold text-gray-900">{pct}%</div>
-                <div className="text-xs text-gray-400">{correct}/{total}</div>
-              </div>
-            </div>
-            <h2 className={`text-2xl font-bold ${gradeColor}`}>{grade}</h2>
-            <p className="text-gray-400 text-sm mt-1">
-              {correct} correct out of {total} questions
-            </p>
-          </div>
-
-          {/* Review answers */}
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Answer Review</h3>
-          <div className="space-y-2 mb-6">
-            {sessionQuestions.map((q, i) => {
-              const isCorrect = answers[i] === q.correctIndex;
-              return (
-                <div
-                  key={q.id}
-                  className={`p-3 rounded-xl border ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${isCorrect ? 'bg-emerald-500' : 'bg-red-400'}`}>
-                      {isCorrect ? (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      ) : (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-700 font-medium leading-snug">{q.question}</p>
-                      {!isCorrect && (
-                        <p className="text-xs text-emerald-600 mt-1">Correct: {q.options[q.correctIndex]}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Buttons */}
-          <div className="space-y-3">
-            <button
-              onClick={startQuiz}
-              className="w-full py-4 rounded-2xl bg-pink-500 text-white font-bold text-base active:scale-[0.98] transition-transform shadow-sm"
-            >
-              Retake Quiz
-            </button>
-            <button
-              onClick={() => setPhase('setup')}
-              className="w-full py-4 rounded-2xl bg-white border border-pink-200 text-gray-700 font-semibold text-base active:scale-[0.98] transition-transform shadow-sm"
-            >
-              Change Category
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Playing phase
-  const currentQuestion = sessionQuestions[currentIndex];
-  const currentAnswer = answers[currentIndex];
-
   return (
-    <div className="page-enter min-h-screen bg-navy-900">
-      {/* Header */}
-      <div
-        className="px-5 pt-4 pb-3 border-b border-pink-100 bg-white"
-        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+    <div className="mt-2">
+      <button
+        onClick={fetchExplanation}
+        className="flex items-center gap-1.5 text-xs font-medium text-pink-500 hover:text-pink-600"
       >
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setPhase('setup')}
-            className="flex items-center gap-1 text-gray-400 text-sm font-medium active:text-gray-700 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Exit
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-xs text-gray-600 font-medium">{sessionScore} correct</span>
+        <span>✨</span>
+        {open ? (explanation ? 'Hide explanation' : 'Hide') : 'Explain this'}
+      </button>
+      {open && (
+        <div className="mt-2 p-3 bg-pink-50 border border-pink-100 rounded-xl">
+          {loading && !explanation && (
+            <div className="flex items-center gap-2">
+              <svg className="animate-spin text-pink-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              <span className="text-xs text-gray-400">Generating explanation...</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-pink-200" />
-              <span className="text-xs text-gray-400">{sessionQuestions.length - sessionAnswered} left</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Question */}
-      <div className="py-5">
-        <QuizQuestionComponent
-          question={currentQuestion}
-          questionNumber={currentIndex + 1}
-          totalQuestions={sessionQuestions.length}
-          selectedAnswer={currentAnswer ?? null}
-          onAnswer={handleAnswer}
-          showExplanation={showExplanation}
-        />
-      </div>
-
-      {/* Next button */}
-      {showExplanation && (
-        <div className="px-4 pb-4">
-          <button
-            onClick={handleNext}
-            className="w-full py-4 rounded-2xl bg-pink-500 text-white font-bold text-base active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-sm"
-          >
-            {currentIndex < sessionQuestions.length - 1 ? (
-              <>
-                Next Question
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </>
-            ) : (
-              <>
-                See Results
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              </>
-            )}
-          </button>
+          )}
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          {explanation && <p className="text-xs text-gray-700 leading-relaxed">{explanation}</p>}
         </div>
       )}
     </div>
   );
+}
+
+// ── Score arc ────────────────────────────────────────────────────────────────
+function ScoreArc({ score }: { score: number }) {
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (animated ? score / 100 : 0) * circumference;
+
+  const grade =
+    score >= 90 ? 'Excellent!' : score >= 75 ? 'Great Job!' : score >= 60 ? 'Good Effort' : 'Keep Practicing';
+  const gradeColor =
+    score >= 90 ? 'text-emerald-500' : score >= 75 ? 'text-pink-500' : score >= 60 ? 'text-amber-500' : 'text-gray-500';
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-36 h-36">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="#fce7f3" strokeWidth="10" />
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke="#ec4899"
+            strokeWidth="10"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-bold text-gray-900">{score}%</span>
+        </div>
+      </div>
+      <p className={`text-xl font-bold mt-2 ${gradeColor}`}>{grade}</p>
+    </div>
+  );
+}
+
+export default function QuizPage() {
+  const [phase, setPhase] = useState<Phase>('setup');
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [answered, setAnswered] = useState(false);
+  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
+  const [error, setError] = useState('');
+
+  const score =
+    answers.length > 0 ? Math.round((answers.filter((a) => a.correct).length / answers.length) * 100) : 0;
+
+  const wrongAnswers = answers.filter((a) => !a.correct);
+
+  const generateQuiz = async () => {
+    if (!selectedTopic) return;
+    setPhase('loading');
+    setError('');
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'quiz', topic: selectedTopic }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate quiz');
+      if (!Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error('No questions returned. Please try again.');
+      }
+      setQuestions(data.questions);
+      setCurrentQ(0);
+      setSelectedAnswer(null);
+      setAnswered(false);
+      setAnswers([]);
+      setPhase('playing');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setPhase('setup');
+    }
+  };
+
+  const handleAnswer = (index: number) => {
+    if (answered) return;
+    setSelectedAnswer(index);
+    setAnswered(true);
+  };
+
+  const handleNext = () => {
+    if (selectedAnswer === null) return;
+    const q = questions[currentQ];
+    const record: AnswerRecord = {
+      question: q,
+      selectedIndex: selectedAnswer,
+      correct: selectedAnswer === q.correctIndex,
+    };
+    const newAnswers = [...answers, record];
+    setAnswers(newAnswers);
+
+    if (currentQ + 1 >= questions.length) {
+      const finalScore = Math.round((newAnswers.filter((a) => a.correct).length / newAnswers.length) * 100);
+      saveScore(selectedTopic, finalScore);
+      setPhase('results');
+    } else {
+      setCurrentQ(currentQ + 1);
+      setSelectedAnswer(null);
+      setAnswered(false);
+    }
+  };
+
+  const resetToSetup = () => {
+    setPhase('setup');
+    setQuestions([]);
+    setCurrentQ(0);
+    setSelectedAnswer(null);
+    setAnswered(false);
+    setAnswers([]);
+    setError('');
+  };
+
+  // ── SETUP ───────────────────────────────────────────────────────────────────
+  if (phase === 'setup') {
+    return (
+      <div className="min-h-screen bg-navy-900">
+        <div className="px-5 pt-4 pb-6" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Quiz Mode</h1>
+          <p className="text-sm text-gray-400">Choose a topic — AI will craft 5 questions for you.</p>
+        </div>
+
+        <div className="px-5">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Select Topic</h2>
+          <div className="grid grid-cols-2 gap-2.5">
+            {ECHO_TOPICS.map((topic) => (
+              <button
+                key={topic}
+                onClick={() => setSelectedTopic(topic)}
+                className={`p-3 rounded-2xl border text-left transition-all active:scale-95 ${
+                  selectedTopic === topic
+                    ? 'bg-pink-500 text-white border-pink-500 shadow-sm'
+                    : 'bg-white text-gray-700 border-pink-100 hover:border-pink-300'
+                }`}
+              >
+                <span className="text-sm font-medium leading-tight block">{topic}</span>
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-xs text-red-600">{error}</p>
+            </div>
+          )}
+
+          <button
+            onClick={generateQuiz}
+            disabled={!selectedTopic}
+            className="mt-5 w-full py-4 rounded-2xl bg-pink-500 text-white font-bold text-base disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform"
+          >
+            Generate Quiz
+            {selectedTopic && <span className="font-normal opacity-80 text-sm">· {selectedTopic}</span>}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LOADING ─────────────────────────────────────────────────────────────────
+  if (phase === 'loading') {
+    return (
+      <div className="min-h-screen bg-navy-900 flex flex-col items-center justify-center gap-5 px-5">
+        <div className="w-16 h-16 rounded-2xl bg-pink-50 border border-pink-200 flex items-center justify-center">
+          <svg className="animate-spin text-pink-500" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-base font-semibold text-gray-900">Crafting your quiz...</p>
+          <p className="text-sm text-gray-400 mt-1">{selectedTopic}</p>
+        </div>
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-pink-400 animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── PLAYING ─────────────────────────────────────────────────────────────────
+  if (phase === 'playing' && questions.length > 0) {
+    const q = questions[currentQ];
+    const progress = ((currentQ) / questions.length) * 100;
+
+    return (
+      <div className="min-h-screen bg-navy-900">
+        {/* Header */}
+        <div className="px-5 pt-4 pb-3" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={resetToSetup} className="text-gray-400 text-sm flex items-center gap-1">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Topics
+            </button>
+            <span className="text-sm font-semibold text-gray-500">
+              {currentQ + 1} / {questions.length}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div className="h-1.5 bg-pink-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-pink-500 rounded-full transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="px-5">
+          {/* Topic badge */}
+          <div className="mb-3">
+            <span className="text-xs font-medium text-pink-500 bg-pink-50 border border-pink-200 px-2.5 py-1 rounded-full">
+              {selectedTopic}
+            </span>
+          </div>
+
+          {/* Question */}
+          <div className="bg-white border border-pink-100 rounded-2xl p-5 shadow-sm mb-4">
+            <p className="text-base font-semibold text-gray-900 leading-snug">{q.question}</p>
+          </div>
+
+          {/* Options */}
+          <div className="space-y-2.5">
+            {q.options.map((option, i) => {
+              let style =
+                'bg-white border-pink-100 text-gray-800';
+              if (answered) {
+                if (i === q.correctIndex) {
+                  style = 'bg-emerald-50 border-emerald-400 text-emerald-800';
+                } else if (i === selectedAnswer && i !== q.correctIndex) {
+                  style = 'bg-red-50 border-red-400 text-red-800';
+                } else {
+                  style = 'bg-white border-pink-100 text-gray-400';
+                }
+              } else if (selectedAnswer === i) {
+                style = 'bg-pink-50 border-pink-400 text-pink-800';
+              }
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleAnswer(i)}
+                  disabled={answered}
+                  className={`w-full flex items-start gap-3 p-4 rounded-2xl border text-left transition-all active:scale-[0.98] shadow-sm ${style}`}
+                >
+                  <span className={`w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
+                    answered && i === q.correctIndex
+                      ? 'bg-emerald-400 text-white'
+                      : answered && i === selectedAnswer && i !== q.correctIndex
+                      ? 'bg-red-400 text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {answered && i === q.correctIndex ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    ) : answered && i === selectedAnswer ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      OPTION_LABELS[i]
+                    )}
+                  </span>
+                  <span className="text-sm leading-snug">{option}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Explanation after answer */}
+          {answered && (
+            <div className="mt-4 p-4 bg-white border border-pink-100 rounded-2xl shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Explanation</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{q.explanation}</p>
+            </div>
+          )}
+
+          {answered && (
+            <button
+              onClick={handleNext}
+              className="mt-4 w-full py-4 bg-pink-500 text-white font-bold rounded-2xl text-base shadow-sm active:scale-[0.98] transition-transform"
+            >
+              {currentQ + 1 >= questions.length ? 'See Results' : 'Next Question'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── RESULTS ─────────────────────────────────────────────────────────────────
+  if (phase === 'results') {
+    const correct = answers.filter((a) => a.correct).length;
+
+    return (
+      <div className="min-h-screen bg-navy-900">
+        <div className="px-5 pt-4 pb-6" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Quiz Results</h1>
+          <p className="text-sm text-gray-400">{selectedTopic}</p>
+        </div>
+
+        {/* Score circle */}
+        <div className="px-5 mb-5 flex justify-center">
+          <div className="bg-white border border-pink-100 rounded-3xl p-6 shadow-sm w-full max-w-xs flex flex-col items-center gap-3">
+            <ScoreArc score={score} />
+            <p className="text-sm text-gray-500">
+              {correct} of {answers.length} correct
+            </p>
+          </div>
+        </div>
+
+        {/* Wrong answers */}
+        {wrongAnswers.length > 0 && (
+          <div className="px-5 mb-5">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Review Wrong Answers ({wrongAnswers.length})
+            </h2>
+            <div className="space-y-3">
+              {wrongAnswers.map((record, i) => (
+                <div key={i} className="bg-white border border-pink-100 rounded-2xl p-4 shadow-sm">
+                  <p className="text-sm font-medium text-gray-800 mb-2 leading-snug">
+                    {record.question.question}
+                  </p>
+                  <div className="flex items-start gap-2 mb-1">
+                    <span className="w-4 h-4 rounded-full bg-red-100 flex-shrink-0 flex items-center justify-center mt-0.5">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </span>
+                    <p className="text-xs text-red-600">
+                      Your answer: {record.question.options[record.selectedIndex]}
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="w-4 h-4 rounded-full bg-emerald-100 flex-shrink-0 flex items-center justify-center mt-0.5">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </span>
+                    <p className="text-xs text-emerald-700">
+                      Correct: {record.question.options[record.question.correctIndex]}
+                    </p>
+                  </div>
+                  <ExplanationCard record={record} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {wrongAnswers.length === 0 && (
+          <div className="px-5 mb-5">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+              <p className="text-2xl mb-2">🎉</p>
+              <p className="text-sm font-semibold text-emerald-700">Perfect score! All questions correct.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="px-5 flex gap-3 pb-6">
+          <button
+            onClick={() => {
+              setCurrentQ(0);
+              setSelectedAnswer(null);
+              setAnswered(false);
+              setAnswers([]);
+              generateQuiz();
+            }}
+            className="flex-1 py-3.5 bg-pink-500 text-white rounded-2xl font-semibold text-sm shadow-sm active:scale-95 transition-transform"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={resetToSetup}
+            className="flex-1 py-3.5 bg-white border border-pink-200 text-pink-500 rounded-2xl font-semibold text-sm shadow-sm active:scale-95 transition-transform"
+          >
+            New Topic
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

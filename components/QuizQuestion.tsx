@@ -1,6 +1,13 @@
 'use client';
 
-import type { QuizQuestion } from '@/lib/data';
+interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  category: string;
+}
 
 interface QuizQuestionProps {
   question: QuizQuestion;
@@ -92,7 +99,7 @@ export default function QuizQuestionComponent({
 
       {/* Options */}
       <div className="space-y-3 mb-4">
-        {question.options.map((option, index) => (
+        {question.options.map((option: string, index: number) => (
           <button
             key={index}
             onClick={() => selectedAnswer === null && onAnswer(index)}
