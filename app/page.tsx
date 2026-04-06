@@ -2715,9 +2715,8 @@ function EchoImageQuiz() {
   };
 
   const handleNext = () => {
-    const finalScore = score + (selected === current.correct ? 1 : 0);
     if (idx + 1 >= questions.length) {
-      if (finalScore === questions.length) setShowConfetti(true);
+      if (score === questions.length) setShowConfetti(true);
       else setPhase('results');
     } else { setIdx(i => i + 1); setSelected(null); setAnswered(false); }
   };
@@ -2887,9 +2886,8 @@ function MaterialsQuiz() {
     if (i === current.correct) setScore(s => s + 1);
   };
   const handleNext = () => {
-    const finalScore = score + (selected === current.correct ? 1 : 0);
     if (idx + 1 >= questions.length) {
-      if (finalScore === questions.length) setShowConfetti(true); else setPhase('results');
+      if (score === questions.length) setShowConfetti(true); else setPhase('results');
     } else { setIdx(i => i + 1); setSelected(null); setAnswered(false); }
   };
   const reset = () => { setIdx(0); setSelected(null); setAnswered(false); setScore(0); setPhase('setup'); setShowConfetti(false); };
@@ -3003,9 +3001,8 @@ function HeartSoundsSection() {
   };
 
   const handleNext = () => {
-    const finalScore = score + (selected === current.correct ? 1 : 0);
     if (idx + 1 >= questions.length) {
-      if (finalScore === questions.length) setShowConfetti(true);
+      if (score === questions.length) setShowConfetti(true);
       else setPhase('results');
     } else {
       setIdx(i => i + 1);
