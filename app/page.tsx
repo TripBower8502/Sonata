@@ -2615,7 +2615,7 @@ function EchoViewSVG({ id }: { id: EchoImageId }) {
 
 function EchoImageQuiz() {
   const { P, PL, PS, PB, PT, PM, PX } = useT();
-  const [questions, setQuestions] = useState<ReturnType<typeof shuffleOptions>[]>([]);
+  const [questions, setQuestions] = useState<typeof ECHO_IMAGE_QUIZ[number][]>([]);
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -2727,7 +2727,7 @@ function EchoImageQuiz() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 14 }}>{selected === current.correct ? '✅' : '❌'}</span>
             <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: selected === current.correct ? '#166534' : '#991b1b' }}>
-              {selected === current.correct ? 'Correct!' : `Incorrect — ${current.label}`}
+              {selected === current.correct ? 'Correct!' : `Incorrect — ${current.options[current.correct]}`}
             </span>
           </div>
           <div style={{ fontSize: 12, color: PM, lineHeight: 1.65, marginBottom: 10 }}>{renderText(current.explanation)}</div>
