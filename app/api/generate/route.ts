@@ -1,40 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 
-const client = new OpenAI({
-  apiKey: process.env.XAI_API_KEY,
-  baseURL: 'https://api.x.ai/v1',
-});
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
+const MODELS = ['grok-4-1-fast-reasoning', 'grok-4-1-fast-non-reasoning'];
 
-const MODEL_PRIORITY = ['grok-4-1-fast-non-reasoning', 'grok-3-fast', 'grok-3'];
+async function callXAI(key: string, model: string, messages: Array<{ role: string; content: string }>, opts: Record<string, unknown> = {}): Promise<string> {
+  const res = await fetch(XAI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model, messages, max_tokens: 2500, temperature: 0.7, ...opts }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content ?? '';
+}
 
-async function tryModels<T>(fn: (model: string) => Promise<T>): Promise<T> {
-  let lastError: unknown;
-  for (const model of MODEL_PRIORITY) {
+async function tryModels(key: string, messages: Array<{ role: string; content: string }>, opts: Record<string, unknown> = {}): Promise<string> {
+  let lastError = '';
+  for (const model of MODELS) {
     try {
-      return await fn(model);
+      return await callXAI(key, model, messages, opts);
     } catch (err) {
-      lastError = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      // only retry on model-not-found type errors
-      if (!msg.toLowerCase().includes('model') && !msg.toLowerCase().includes('not found')) {
-        throw err;
-      }
+      lastError = err instanceof Error ? err.message : String(err);
+      console.error(`Model ${model} failed:`, lastError);
     }
   }
-  throw lastError;
+  throw new Error(lastError || 'All models failed');
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.XAI_API_KEY) {
-    return NextResponse.json(
-      { error: 'XAI_API_KEY is not configured. Add it to your .env.local file.' },
-      { status: 500 },
-    );
+  const key = process.env.XAI_API_KEY;
+  if (!key) {
+    return NextResponse.json({ error: 'XAI_API_KEY is not configured.' }, { status: 500 });
   }
 
   let body: {
-    type: 'flashcards' | 'quiz' | 'explanation';
+    type: 'flashcards' | 'quiz' | 'explanation' | 'case';
     topic?: string;
     question?: string;
     correctAnswer?: string;
@@ -49,184 +52,197 @@ export async function POST(req: NextRequest) {
 
   const { type, topic, question, correctAnswer, userAnswer } = body;
 
-  // ── FLASHCARDS ───────────────────────────────────────────────────────────────
+  // ── FLASHCARDS ──────────────────────────────────────────────────────────────
   if (type === 'flashcards') {
-    if (!topic) {
-      return NextResponse.json({ error: 'topic is required for flashcard generation' }, { status: 400 });
-    }
+    if (!topic) return NextResponse.json({ error: 'topic is required' }, { status: 400 });
 
-    const prompt = `You are an expert echocardiography educator. Generate exactly 5 high-quality flashcards about the topic: "${topic}".
+    const prompt = `You are an expert echocardiography educator creating study flashcards. Generate exactly 5 high-quality flashcards about: "${topic}".
 
-Return a JSON object with a single key "cards" containing an array of 5 flashcard objects. Each object must have:
-- "front": string (concise term or question, max 10 words)
-- "back": string (thorough explanation, 2–5 sentences, clinically accurate)
-- "category": string (use "${topic}" or a relevant subcategory)
-- "normalValues": string (optional — include only if there are specific numeric normal ranges relevant to this card; omit the key otherwise)
+IMPORTANT: Each card front MUST be a specific clinical question (e.g., "What is the modified Bernoulli equation and when is it used?", "How do you calculate RVSP from a TR jet?", "What are the echo criteria for severe aortic stenosis?"). NOT just a term.
 
-Focus on clinically important, exam-relevant content. Include real numeric thresholds and formulas where applicable.
+Return a JSON object with key "cards" containing an array of 5 objects, each with:
+- "front": string — a specific, targeted clinical question (10–20 words). Must end with "?"
+- "back": string — thorough answer (3–6 sentences). Include mechanisms, clinical significance, formulas, and exam pitfalls. Be clinically precise.
+- "category": string — use "${topic}" or a relevant subcategory
+- "normalValues": string — include ONLY if there are specific numeric thresholds relevant to this card (e.g., "Normal EF ≥55% | Severe AS: AVA <1.0 cm²"). Omit the key if not applicable.
 
-Example format:
-{"cards":[{"front":"Term or question","back":"Detailed explanation here.","category":"${topic}","normalValues":"Normal: X | Abnormal: Y"}]}`;
+Make questions progressively harder — mix recall, interpretation, and clinical application questions.
+
+Respond with ONLY valid JSON, no markdown, no code blocks, no explanation.`;
 
     try {
-      const result = await tryModels(async (model) => {
-        const completion = await client.chat.completions.create({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2000,
-          temperature: 0.7,
-          response_format: { type: 'json_object' },
-        });
-        return completion.choices[0].message.content ?? '';
-      });
-
+      const result = await tryModels(key, [{ role: 'user', content: prompt }], { response_format: { type: 'json_object' } });
       let parsed: { cards: Array<{ front: string; back: string; category: string; normalValues?: string }> };
       try {
         parsed = JSON.parse(result);
       } catch {
-        // fallback: try to extract JSON from the text
         const match = result.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error('Could not parse JSON from model response');
+        if (!match) throw new Error('Could not parse JSON from response');
         parsed = JSON.parse(match[0]);
       }
-
-      if (!Array.isArray(parsed.cards)) {
-        throw new Error('Unexpected response shape — missing cards array');
-      }
-
+      if (!Array.isArray(parsed.cards)) throw new Error('Missing cards array in response');
       return NextResponse.json({ cards: parsed.cards });
     } catch (err) {
       console.error('Generate flashcards error:', err);
-      const message = err instanceof Error ? err.message : 'Failed to generate flashcards';
-      return NextResponse.json({ error: message }, { status: 500 });
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to generate flashcards' }, { status: 500 });
     }
   }
 
-  // ── QUIZ ─────────────────────────────────────────────────────────────────────
+  // ── QUIZ ────────────────────────────────────────────────────────────────────
   if (type === 'quiz') {
-    if (!topic) {
-      return NextResponse.json({ error: 'topic is required for quiz generation' }, { status: 400 });
-    }
+    if (!topic) return NextResponse.json({ error: 'topic is required' }, { status: 400 });
 
-    const prompt = `You are an expert echocardiography educator creating a multiple-choice quiz. Generate exactly 5 quiz questions about the topic: "${topic}".
+    const prompt = `You are an expert echocardiography educator creating a high-quality clinical quiz. Generate exactly 5 multiple-choice questions about: "${topic}".
 
-Return a JSON object with a single key "questions" containing an array of 5 question objects. Each object must have:
-- "question": string (clear, specific clinical question)
-- "options": array of exactly 4 strings (the answer choices, labeled without A/B/C/D prefix)
-- "correctIndex": number (0–3, the index of the correct answer in the options array)
-- "explanation": string (2–4 sentences explaining why the answer is correct and why others are wrong)
+Question quality requirements:
+- Include a mix of: direct knowledge (1–2 questions), clinical scenario/case-based (2–3 questions), and calculation/interpretation (1 question)
+- Clinical scenarios should describe a real patient (age, symptoms, specific echo measurements) and ask for interpretation or next step
+- Distractors must be plausible — common misconceptions or similar-sounding values, NOT obviously wrong
+- Include at least one question with specific numeric values that must be interpreted (e.g., "TAPSE 14mm, E/e' 18, RVSP 55mmHg — what does this indicate?")
 
-Questions should range from straightforward recall to application-level clinical scenarios. Use realistic values and clinical contexts.
+Return a JSON object with key "questions" containing an array of 5 objects, each with:
+- "question": string — specific, clinically rich question (may include patient scenario with measurements)
+- "options": array of exactly 4 strings — plausible answer choices, no A/B/C/D prefix
+- "correctIndex": number — 0–3, index of the correct answer
+- "explanation": string — 3–5 sentences: explain WHY the correct answer is right with clinical reasoning, WHY each wrong answer is wrong or commonly confused, and include a relevant threshold/formula/mnemonic
 
-Example format:
-{"questions":[{"question":"What is the normal range for...","options":["Option 1","Option 2","Option 3","Option 4"],"correctIndex":2,"explanation":"Option 3 is correct because..."}]}`;
+Respond with ONLY valid JSON, no markdown, no code blocks.`;
 
     try {
-      const result = await tryModels(async (model) => {
-        const completion = await client.chat.completions.create({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2500,
-          temperature: 0.7,
-          response_format: { type: 'json_object' },
-        });
-        return completion.choices[0].message.content ?? '';
-      });
-
-      let parsed: {
-        questions: Array<{
-          question: string;
-          options: string[];
-          correctIndex: number;
-          explanation: string;
-        }>;
-      };
+      const result = await tryModels(key, [{ role: 'user', content: prompt }], { response_format: { type: 'json_object' } });
+      let parsed: { questions: Array<{ question: string; options: string[]; correctIndex: number; explanation: string }> };
       try {
         parsed = JSON.parse(result);
       } catch {
         const match = result.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error('Could not parse JSON from model response');
+        if (!match) throw new Error('Could not parse JSON from response');
         parsed = JSON.parse(match[0]);
       }
-
-      if (!Array.isArray(parsed.questions)) {
-        throw new Error('Unexpected response shape — missing questions array');
-      }
-
+      if (!Array.isArray(parsed.questions)) throw new Error('Missing questions array in response');
       return NextResponse.json({ questions: parsed.questions });
     } catch (err) {
       console.error('Generate quiz error:', err);
-      const message = err instanceof Error ? err.message : 'Failed to generate quiz';
-      return NextResponse.json({ error: message }, { status: 500 });
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to generate quiz' }, { status: 500 });
     }
   }
 
-  // ── EXPLANATION (streaming) ──────────────────────────────────────────────────
+  // ── EXPLANATION (streaming) ─────────────────────────────────────────────────
   if (type === 'explanation') {
     if (!question || !correctAnswer) {
-      return NextResponse.json(
-        { error: 'question and correctAnswer are required for explanation' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'question and correctAnswer are required' }, { status: 400 });
     }
 
-    const userAnswerLine = userAnswer
-      ? `The student selected: "${userAnswer}" (which was incorrect).`
-      : '';
-
-    const prompt = `You are an expert echocardiography educator. A student got the following quiz question wrong.
+    const prompt = `You are an expert echocardiography educator. A student got this quiz question wrong. Explain it using ONLY bullet points — no paragraphs.
 
 Question: "${question}"
 Correct answer: "${correctAnswer}"
-${userAnswerLine}
+${userAnswer ? `Student's wrong answer: "${userAnswer}"` : ''}
 
-Please provide a clear, educational explanation (3–5 sentences) that:
-1. Explains why the correct answer is right, with specific clinical reasoning
-2. If the student's wrong answer is known, briefly explains why it was incorrect
-3. Includes a memorable clinical pearl or mnemonic if applicable
-4. Mentions any relevant normal values or thresholds
+Respond with short, clear bullets organized like this:
+• **✅ Why "${correctAnswer}" is correct:** — specific clinical reasoning
+• **❌ Why "${userAnswer || 'the other answer'}" is wrong:** — common misconception explained
+• **Key value/formula:** — relevant threshold or equation (if applicable)
+• **Remember:** — one-line mnemonic or clinical pearl
 
-Be warm, encouraging, and focus on helping them understand the concept.`;
+Keep every bullet to 1–2 lines. Be encouraging and precise.`;
+
+    let lastError = '';
+    for (const model of MODELS) {
+      try {
+        const res = await fetch(XAI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            model, stream: true, max_tokens: 512, temperature: 0.7,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          lastError = err?.error?.message ?? `HTTP ${res.status}`;
+          if (res.status === 403 || res.status === 404) continue;
+          return NextResponse.json({ error: lastError }, { status: res.status });
+        }
+
+        // Stream text chunks only (not SSE format) for simpler client parsing
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        const encoder = new TextEncoder();
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                for (const line of chunk.split('\n')) {
+                  if (!line.startsWith('data: ')) continue;
+                  const d = line.slice(6).trim();
+                  if (d === '[DONE]') continue;
+                  try {
+                    const text = JSON.parse(d).choices?.[0]?.delta?.content ?? '';
+                    if (text) controller.enqueue(encoder.encode(text));
+                  } catch {}
+                }
+              }
+              controller.close();
+            } catch (err) {
+              controller.error(err);
+            }
+          },
+        });
+
+        return new Response(stream, {
+          headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
+        });
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        console.error(`Explanation model ${model} failed:`, lastError);
+      }
+    }
+
+    return NextResponse.json({ error: lastError || 'All models failed' }, { status: 500 });
+  }
+
+  // ── CASE STUDY ──────────────────────────────────────────────────────────────
+  if (type === 'case') {
+    if (!topic) return NextResponse.json({ error: 'topic is required' }, { status: 400 });
+
+    const prompt = `You are an expert echocardiography educator. Generate a detailed clinical echocardiography case study about: "${topic}".
+
+Return a JSON object with these exact fields:
+- "title": string — the diagnosis (e.g., "Aortic Stenosis")
+- "subtitle": string — one-line patient summary (e.g., "72-year-old male, exertional dyspnea")
+- "difficulty": "Beginner" | "Intermediate" | "Advanced"
+- "icon": string — one relevant emoji (heart, stethoscope, warning sign, etc.)
+- "patient": string — 2–3 sentence clinical presentation with age, sex, chief complaint, and key symptoms
+- "history": string — 1–2 sentences of relevant labs, vitals, ECG findings, or diagnostic context
+- "echoFindings": array of 8–10 strings — specific measured values (e.g., "AVA 0.7 cm² — severely stenotic", "Mean gradient 52 mmHg", "LV posterior wall 12mm — concentric hypertrophy")
+- "keyQuestion": string — the core clinical teaching question for this case
+- "diagnosis": string — complete one-sentence diagnosis with severity
+- "teachingPoints": array of 5–6 strings — clinical pearls with specific thresholds, formulas, or mnemonics relevant to this diagnosis
+
+All echo findings MUST include specific numeric values. Teaching points must be clinically precise with numbers and thresholds.
+
+Respond with ONLY valid JSON, no markdown, no code blocks.`;
 
     try {
-      const stream = await tryModels(async (model) => {
-        return client.chat.completions.create({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          stream: true,
-          max_tokens: 512,
-          temperature: 0.7,
-        });
-      });
-
-      const encoder = new TextEncoder();
-      const readable = new ReadableStream({
-        async start(controller) {
-          try {
-            for await (const chunk of stream) {
-              const text = chunk.choices[0]?.delta?.content ?? '';
-              if (text) {
-                controller.enqueue(encoder.encode(text));
-              }
-            }
-            controller.close();
-          } catch (err) {
-            controller.error(err);
-          }
-        },
-      });
-
-      return new Response(readable, {
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache',
-          'X-Content-Type-Options': 'nosniff',
-        },
-      });
+      const result = await tryModels(key, [{ role: 'user', content: prompt }], { response_format: { type: 'json_object' } });
+      let parsed: { title: string; subtitle: string; difficulty: string; icon: string; patient: string; history: string; echoFindings: string[]; keyQuestion: string; diagnosis: string; teachingPoints: string[] };
+      try {
+        parsed = JSON.parse(result);
+      } catch {
+        const match = result.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('Could not parse JSON from response');
+        parsed = JSON.parse(match[0]);
+      }
+      if (!parsed.title || !Array.isArray(parsed.echoFindings)) throw new Error('Invalid case structure');
+      return NextResponse.json({ case: parsed });
     } catch (err) {
-      console.error('Generate explanation error:', err);
-      const message = err instanceof Error ? err.message : 'Failed to generate explanation';
-      return NextResponse.json({ error: message }, { status: 500 });
+      console.error('Generate case error:', err);
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to generate case' }, { status: 500 });
     }
   }
 

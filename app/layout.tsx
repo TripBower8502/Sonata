@@ -1,12 +1,17 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Sora, Space_Mono } from 'next/font/google';
 import './globals.css';
-import BottomNav from '@/components/BottomNav';
-import PinScreen from '@/components/PinScreen';
 
-const inter = Inter({
+const sora = Sora({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-sora',
+  display: 'swap',
+});
+
+const spaceMono = Space_Mono({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-space-mono',
   display: 'swap',
 });
 
@@ -26,7 +31,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#fdf2f8',
+  themeColor: '#fdf0f3',
 };
 
 export default function RootLayout({
@@ -35,19 +40,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="bg-navy-900 text-gray-900 min-h-screen">
-        <PinScreen>
-          <div
-            className="min-h-screen flex flex-col"
-            style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}
-          >
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
-          <BottomNav />
-        </PinScreen>
+    <html lang="en" className={`${sora.variable} ${spaceMono.variable}`}>
+      <body className="min-h-screen" style={{ background: '#fdf0f3' }}>
+        {children}
       </body>
     </html>
   );
