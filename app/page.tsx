@@ -67,6 +67,9 @@ function getStats() {
 
 function saveStats(s: Record<string, unknown>) {
   stor(STATS_KEY, JSON.stringify(s));
+  const h = new Date().getHours();
+  try { if (h >= 22) localStorage.setItem('sonata_night_owl', 'true'); } catch {}
+  try { if (h < 6) localStorage.setItem('sonata_early_bird', 'true'); } catch {}
 }
 
 function getStudiedIds(): Set<string> {
@@ -3202,12 +3205,28 @@ function ProgressSection() {
   }, []);
 
   const achievements = [
-    { emoji: '🌟', label: 'First Card', desc: 'Study your first flashcard', unlocked: stats.flashcardsStudied >= 1 },
-    { emoji: '📚', label: 'Dedicated', desc: 'Study 10 flashcards', unlocked: stats.flashcardsStudied >= 10 },
-    { emoji: '🎯', label: 'Quiz Taker', desc: 'Complete your first quiz', unlocked: stats.quizzesTaken >= 1 },
-    { emoji: '🏆', label: 'High Scorer', desc: 'Score 80%+ on a quiz', unlocked: stats.bestScore >= 80 },
-    { emoji: '🔥', label: 'On a Roll', desc: 'Maintain a 3-day streak', unlocked: stats.streak >= 3 },
-    { emoji: '🩺', label: 'Clinician', desc: 'Review all case studies', unlocked: stats.casesReviewed.length >= caseStudies.length },
+    // Getting started
+    { emoji: '🐣', label: 'Baby Sonographer', desc: 'Study your very first flashcard', unlocked: stats.flashcardsStudied >= 1 },
+    { emoji: '🎯', label: 'Quiz Curious', desc: 'Take your first quiz without crying', unlocked: stats.quizzesTaken >= 1 },
+    // Flashcard milestones
+    { emoji: '🧠', label: 'Big Brain Energy', desc: 'Study 10 flashcards', unlocked: stats.flashcardsStudied >= 10 },
+    { emoji: '📚', label: 'Card Shark', desc: 'Study 20 flashcards like a machine', unlocked: stats.flashcardsStudied >= 20 },
+    { emoji: '🤓', label: 'Nerd Alert', desc: 'Study all flashcards — you absolute legend', unlocked: stats.flashcardsStudied >= preloadedFlashcards.length },
+    // Quiz milestones
+    { emoji: '🏅', label: 'Overachiever', desc: 'Score 80%+ on a quiz', unlocked: stats.bestScore >= 80 },
+    { emoji: '💯', label: 'Literally Perfect', desc: 'Score 100% — did you cheat??', unlocked: stats.bestScore >= 100 },
+    { emoji: '📝', label: 'Quiz Addict', desc: 'Take 5 quizzes — you can stop anytime', unlocked: stats.quizzesTaken >= 5 },
+    { emoji: '🤯', label: 'Quiz Machine', desc: 'Take 10 quizzes — this is your life now', unlocked: stats.quizzesTaken >= 10 },
+    // Streak milestones
+    { emoji: '🔥', label: 'On a Roll', desc: '3-day streak — look at you go', unlocked: stats.streak >= 3 },
+    { emoji: '🐢', label: 'Isla Approved', desc: '7-day streak — even the turtle is impressed', unlocked: stats.streak >= 7 },
+    { emoji: '👑', label: 'Streak Royalty', desc: '14-day streak — bow down everyone', unlocked: stats.streak >= 14 },
+    // Cases
+    { emoji: '🩺', label: 'Case Closed', desc: 'Complete your first case study', unlocked: stats.casesReviewed.length >= 1 },
+    { emoji: '🕵️', label: 'Echo Detective', desc: 'Complete all cases — nothing gets past you', unlocked: stats.casesReviewed.length >= caseStudies.length },
+    // Secret / fun
+    { emoji: '🦉', label: 'Night Owl', desc: 'Study after 10pm — sleep is overrated', unlocked: (() => { try { return localStorage.getItem('sonata_night_owl') === 'true'; } catch { return false; } })() },
+    { emoji: '🌅', label: 'Early Bird', desc: 'Study before 6am — are you okay??', unlocked: (() => { try { return localStorage.getItem('sonata_early_bird') === 'true'; } catch { return false; } })() },
   ];
 
   const StatBar = ({ label, val, color = P }: { label: string; val: number; color?: string }) => (
