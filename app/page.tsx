@@ -678,25 +678,27 @@ function PinScreen({ onUnlock }: { onUnlock: () => void }) {
       <div style={{ marginBottom: 28, textAlign: 'center', padding: '0 24px' }}>
         <div className="heartbeat" style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <HeartDoc />
-          <div style={{
-            position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
-            background: isDark ? '#2a1520' : '#fff5f7',
-            border: `1.5px solid ${isDark ? neon : PD}`,
-            borderRadius: 16, padding: '6px 14px',
-            fontSize: 11, fontWeight: 700, color: isDark ? '#ffd6e0' : PM,
-            whiteSpace: 'nowrap',
-            boxShadow: isDark ? neonGlow : '0 2px 8px rgba(224,122,143,0.2)',
-          }}>
-            Good luck on your first day! 🩺✨
+          {(() => { const d = new Date(); return d.getFullYear() === 2026 && d.getMonth() === 3 && d.getDate() === 6; })() && (
             <div style={{
-              position: 'absolute', bottom: -6, left: '50%', marginLeft: -5,
-              width: 10, height: 10,
+              position: 'absolute', top: -42, left: '50%', transform: 'translateX(-50%)',
               background: isDark ? '#2a1520' : '#fff5f7',
               border: `1.5px solid ${isDark ? neon : PD}`,
-              borderTop: 'none', borderLeft: 'none',
-              transform: 'rotate(45deg)',
-            }} />
-          </div>
+              borderRadius: 16, padding: '8px 14px',
+              fontSize: 11, fontWeight: 700, color: isDark ? '#ffd6e0' : PM,
+              whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.5,
+              boxShadow: isDark ? neonGlow : '0 2px 8px rgba(224,122,143,0.2)',
+            }}>
+              Good luck on your first day! 🩺✨<br/>Trip and Isla are so proud of you ❤️🐢
+              <div style={{
+                position: 'absolute', bottom: -6, left: '50%', marginLeft: -5,
+                width: 10, height: 10,
+                background: isDark ? '#2a1520' : '#fff5f7',
+                border: `1.5px solid ${isDark ? neon : PD}`,
+                borderTop: 'none', borderLeft: 'none',
+                transform: 'rotate(45deg)',
+              }} />
+            </div>
+          )}
         </div>
         <div style={{ fontWeight: 800, fontSize: 24, color: PT, letterSpacing: '-0.5px', marginBottom: 8 }}>
           Welcome back, Ally! 💖
