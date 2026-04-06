@@ -623,7 +623,7 @@ function ConfettiCelebration({ onDone }: { onDone: () => void }) {
 
 // ─── PIN Screen ──────────────────────────────────────────────────────────────
 function PinScreen({ onUnlock }: { onUnlock: () => void }) {
-  const { P, PD, PL, PS, PB, PT, PM, PX } = useT();
+  const { P, PD, PL, PS, PB, PT, PM, PX, isDark } = useT();
   const [pin, setPin] = useState('');
   const [shaking, setShaking] = useState(false);
   const [error, setError] = useState(false);
@@ -681,10 +681,10 @@ function PinScreen({ onUnlock }: { onUnlock: () => void }) {
         </div>
         <div style={{
           fontSize: 13, lineHeight: 1.6, fontWeight: 500,
-          background: `linear-gradient(135deg, ${PS} 0%, #fce8ed 100%)`,
-          border: `1.5px solid ${PD}55`,
+          background: isDark ? `linear-gradient(135deg, ${PS} 0%, ${PB}40 100%)` : `linear-gradient(135deg, ${PS} 0%, #fce8ed 100%)`,
+          border: `1.5px solid ${isDark ? PB : PD + '55'}`,
           borderRadius: 18, padding: '12px 16px 10px', marginBottom: 10,
-          boxShadow: '0 2px 12px rgba(224,122,143,0.15)',
+          boxShadow: isDark ? '0 2px 12px rgba(0,0,0,0.3)' : '0 2px 12px rgba(224,122,143,0.15)',
         }}>
           <div style={{ color: PT }}>{message}</div>
           <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: P, textAlign: 'right', letterSpacing: '0.01em' }}>
