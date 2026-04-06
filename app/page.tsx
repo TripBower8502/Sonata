@@ -66,6 +66,18 @@ function getStats() {
 }
 
 function saveStats(s: Record<string, unknown>) {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (s.lastStudied === today) {
+    // Already studied today — streak already counted, no change
+  } else if (s.lastStudied === yesterday) {
+    // Studied yesterday, first activity today — bump streak
+    s.streak = ((s.streak as number) || 0) + 1;
+  } else {
+    // Missed a day or first time ever — start at 1
+    s.streak = 1;
+  }
+  s.lastStudied = today;
   stor(STATS_KEY, JSON.stringify(s));
   const h = new Date().getHours();
   try { if (h >= 22) localStorage.setItem('sonata_night_owl', 'true'); } catch {}
@@ -81,7 +93,6 @@ function markStudied(id: string) {
   stor(STUDIED_KEY, JSON.stringify(Array.from(s)));
   const stats = getStats();
   stats.flashcardsStudied = s.size;
-  stats.lastStudied = new Date().toDateString();
   saveStats(stats);
 }
 
@@ -1384,7 +1395,6 @@ function saveQuizScore(topic: string, score: number) {
     if (score > overall) localStorage.setItem('sonata-best-overall', String(score));
     const stats = getStats();
     stats.quizzesTaken = (stats.quizzesTaken || 0) + 1;
-    stats.lastStudied = new Date().toDateString();
     if (score > (stats.bestScore || 0)) stats.bestScore = score;
     saveStats(stats);
   } catch {}
@@ -1741,7 +1751,6 @@ function CasesSection() {
       }
       const stats = getStats();
       stats.casesReviewed = reviewed;
-      stats.lastStudied = new Date().toDateString();
       saveStats(stats);
     } catch {}
   };
@@ -3301,6 +3310,8 @@ export default function SonataApp() {
 
   useEffect(() => {
     if (sess(UNLOCK_KEY) === 'true') setUnlocked(true);
+    // Mark today's visit so streak counts even if she doesn't actively study
+    saveStats(getStats());
     const checkTime = () => {
       const h = new Date().getHours();
       setIsDark(h >= 21 || h < 6);
@@ -3323,7 +3334,7 @@ export default function SonataApp() {
   return (
     <ThemeCtx.Provider value={theme}>
       {!unlocked ? (
-        <PinScreen onUnlock={() => setUnlocked(true)} />
+        <PinScreen onUnlock={() => { setUnlocked(true); saveStats(getStats()); }} />
       ) : (
         <div style={{ minHeight: '100dvh', background: theme.PL, fontFamily: 'var(--font-sora), sans-serif', transition: 'background 0.4s' }}>
           <TopNav active={tab} onChange={t => setTab(t)} />
