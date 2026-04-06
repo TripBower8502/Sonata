@@ -2333,26 +2333,51 @@ function FormulasSection() {
 // ─── Echo Image Quiz ──────────────────────────────────────────────────────────
 type EchoImageId = 'plax' | 'a4c' | 'psax' | 'plax-dilated' | 'effusion' | 'hocm-plax' | 'd-lv' | 'dilated-rv' | 'subcostal';
 
-// ─── Local Echo Images (Unity Imaging Collaborative, CC BY-NC-SA 4.0) ─────────
-// Real echocardiogram screenshots from GE/Philips machines — A4C views & pericardial effusion PLAX
+// ─── Local Echo Images & Cine Loops ──────────────────────────────────────────
+// Static PNGs: Unity Imaging Collaborative (CC BY-NC-SA 4.0)
+// Animated MP4s: Wikimedia Commons (CC BY-SA 3.0 / CC BY 2.0–2.5 / Public Domain)
 const LOCAL_ECHO_IMAGES: Record<string, string[]> = {
   a4c: Array.from({ length: 40 }, (_, i) => `/echo-images/a4c/a4c-${i + 1}.png`),
   effusion: Array.from({ length: 20 }, (_, i) => `/echo-images/effusion/eff-${i + 1}.png`),
+  // Cine loops — one MP4 per category (shown as looping video)
+  a4c_cine: ['/echo-images/gif/a4c-cine.mp4'],
+  plax_cine: ['/echo-images/gif/plax-cine.mp4'],
+  psax_cine: ['/echo-images/gif/psax-cine.mp4'],
+  subcostal_cine: ['/echo-images/gif/subcostal-cine.mp4'],
+  valves_cine: ['/echo-images/gif/valves-cine.mp4'],
+  mvp_cine: ['/echo-images/gif/mitral-prolapse.mp4'],
+  tamponade_cine: ['/echo-images/gif/tamponade.mp4'],
+  hcm_cine: ['/echo-images/gif/hcm.mp4'],
 };
+
+const CINE_CATEGORIES = new Set(['a4c_cine', 'plax_cine', 'psax_cine', 'subcostal_cine', 'valves_cine', 'mvp_cine', 'tamponade_cine', 'hcm_cine']);
 
 function getRandomEchoImage(category: string): string {
   const pool = LOCAL_ECHO_IMAGES[category] ?? LOCAL_ECHO_IMAGES.a4c;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function EchoClipDisplay({ src }: { src: string }) {
+function EchoClipDisplay({ src, category }: { src: string; category?: string }) {
   const { PB, PX } = useT();
+  const isVideo = category ? CINE_CATEGORIES.has(category) : src.endsWith('.mp4');
+  const attribution = isVideo ? 'Wikimedia Commons · CC BY-SA' : 'Unity Imaging Collaborative · CC BY-NC-SA 4.0';
   return (
     <div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="Echocardiogram" style={{ width: '100%', borderRadius: 10, display: 'block', background: '#000' }} />
+      {isVideo ? (
+        <video
+          src={src}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{ width: '100%', borderRadius: 10, display: 'block', background: '#000' }}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="Echocardiogram" style={{ width: '100%', borderRadius: 10, display: 'block', background: '#000' }} />
+      )}
       <div style={{ fontSize: 9, color: PX, marginTop: 4, textAlign: 'right', borderTop: `1px solid ${PB}`, paddingTop: 4 }}>
-        Unity Imaging Collaborative · CC BY-NC-SA 4.0
+        {attribution}
       </div>
     </div>
   );
@@ -2390,6 +2415,24 @@ const ECHO_IMAGE_QUIZ: {
   { imageCategory: 'effusion', question: 'Which clinical finding would you expect in a patient with a large effusion like the one shown?', options: ['Muffled/distant heart sounds', 'Loud systolic murmur', 'Wide pulse pressure', 'Bounding peripheral pulses'], correct: 0, explanation: '**Muffled heart sounds:** Fluid around the heart dampens sound transmission. Part of Beck\'s triad for tamponade: muffled sounds, hypotension, JVD.', echoKey: 'Beck\'s triad is only present in ~10–40% of tamponade cases. Echo is far more sensitive than clinical exam.' },
   { imageCategory: 'effusion', question: 'If this pericardial effusion is causing hemodynamic compromise, which chamber collapses first?', options: ['Right atrium (during systole)', 'Left ventricle (during diastole)', 'Left atrium (during systole)', 'Right ventricle (during systole)'], correct: 0, explanation: '**Right atrium during systole:** RA systolic collapse is the most sensitive sign of tamponade because the RA has the lowest intracardiac pressure and thinnest wall.', echoKey: 'RA collapse >⅓ of cardiac cycle = highly specific. RV diastolic collapse is more specific but less sensitive.' },
   { imageCategory: 'effusion', question: 'In a trauma patient, which echo view would you use first to look for a finding like the one shown in this image?', options: ['Subcostal 4-chamber (FAST exam)', 'Parasternal long axis', 'Apical 4-chamber', 'Suprasternal notch'], correct: 0, explanation: '**Subcostal 4-chamber:** Part of the FAST exam. Most sensitive view for detecting pericardial effusion in supine trauma patients because the liver provides an acoustic window.', echoKey: 'FAST cardiac view: probe nearly flat on abdomen at subxiphoid, marker to patient\'s right.' },
+  // ─── Animated cine loops (looping MP4 clips from Wikimedia Commons) ───
+  { imageCategory: 'a4c_cine', question: 'Watch the beating heart in this clip. What echocardiographic view is being shown?', options: ['Apical 4-Chamber (A4C)', 'Parasternal Long Axis (PLAX)', 'Parasternal Short Axis (PSAX)', 'Subcostal'], correct: 0, explanation: '**Apical 4-Chamber (A4C):** All 4 chambers are visible with the apex at the top. You can see the LV and RV contracting and the AV valves opening and closing.', echoKey: 'In real-time echo, the A4C lets you assess global wall motion, valve function, and chamber sizes dynamically.' },
+  { imageCategory: 'a4c_cine', question: 'In this moving clip, what cardiac phase is occurring when the ventricles are smallest (most contracted)?', options: ['End-systole', 'End-diastole', 'Isovolumetric relaxation', 'Atrial kick'], correct: 0, explanation: '**End-systole:** The ventricles are at their smallest volume at end-systole, after maximal contraction. EF is calculated from the difference between end-diastolic and end-systolic volumes.', echoKey: 'EF = (EDV - ESV) / EDV × 100. Visual EF estimation improves with practice watching cine loops.' },
+  { imageCategory: 'a4c_cine', question: 'Watching this cine loop, the walls of the left ventricle should move symmetrically inward during systole. Asymmetric motion would suggest:', options: ['Regional wall motion abnormality (possible ischemia)', 'Normal cardiac function', 'Pericardial effusion', 'Valvular stenosis'], correct: 0, explanation: '**Regional wall motion abnormality:** Segments supplied by a blocked coronary artery may be hypokinetic (reduced motion), akinetic (no motion), or dyskinetic (paradoxical motion).', echoKey: 'A4C shows septal, lateral, and apical segments. Compare wall thickening and inward motion during systole.' },
+  { imageCategory: 'plax_cine', question: 'Identify the echocardiographic view shown in this moving clip.', options: ['Parasternal Long Axis (PLAX)', 'Apical 4-Chamber (A4C)', 'Subcostal', 'Suprasternal'], correct: 0, explanation: '**Parasternal Long Axis (PLAX):** Shows the LV, LA, aortic root, mitral valve, and aortic valve in a long-axis orientation. The RV is the most anterior structure.', echoKey: 'PLAX is the first standard view in a complete echo exam. Probe at left parasternal border, 3rd–4th intercostal space.' },
+  { imageCategory: 'plax_cine', question: 'In this PLAX cine loop, which valve can you see opening and closing between the left atrium and left ventricle?', options: ['Mitral valve', 'Tricuspid valve', 'Pulmonic valve', 'Aortic valve'], correct: 0, explanation: '**Mitral valve:** In the PLAX view, the MV is clearly visible between the LA (posterior) and LV (central). You can see both leaflets opening in diastole and closing in systole.', echoKey: 'PLAX is excellent for assessing MV morphology, leaflet motion, and detecting MV prolapse.' },
+  { imageCategory: 'psax_cine', question: 'What echocardiographic view is shown in this clip, with the LV appearing as a circular cross-section?', options: ['Parasternal Short Axis (PSAX)', 'Apical 4-Chamber (A4C)', 'Parasternal Long Axis (PLAX)', 'Apical 2-Chamber (A2C)'], correct: 0, explanation: '**Parasternal Short Axis (PSAX):** The LV appears as a circular "donut" shape. At the mid-papillary level, two papillary muscles are visible inside the LV cavity.', echoKey: 'PSAX is essential for assessing LV wall motion in all coronary territories and detecting septal bowing (D-sign).' },
+  { imageCategory: 'psax_cine', question: 'In this PSAX cine loop, the LV walls should contract symmetrically inward like a "closing circle." If the septum flattens toward the LV, this is called:', options: ['D-sign (RV pressure/volume overload)', 'Normal septal motion', 'SAM (systolic anterior motion)', 'McConnell sign'], correct: 0, explanation: '**D-sign:** The septum bows toward the LV, making it D-shaped instead of circular. Pressure overload = systolic D-sign (PE, pulm HTN). Volume overload = diastolic D-sign (ASD, TR).', echoKey: 'PSAX at mid-papillary level is the best view to detect D-sign. Always correlate with TAPSE and TR velocity.' },
+  { imageCategory: 'subcostal_cine', question: 'This clip shows the heart from below the diaphragm. What view is this?', options: ['Subcostal 4-chamber', 'Apical 4-chamber', 'Parasternal long axis', 'Suprasternal notch'], correct: 0, explanation: '**Subcostal 4-chamber:** Probe in the subxiphoid region with the liver as an acoustic window. All 4 chambers visible but from an inferior perspective.', echoKey: 'Best view for: interatrial septum (ASD), pericardial effusion (FAST exam), and patients with poor apical windows (COPD, obesity).' },
+  { imageCategory: 'subcostal_cine', question: 'In this subcostal view, which structure provides the acoustic window that allows visualization of the heart?', options: ['Liver', 'Lung', 'Stomach', 'Spleen'], correct: 0, explanation: '**Liver:** The liver transmits ultrasound well because it is a solid organ. This is why the subcostal view is used in the FAST exam — the liver provides reliable cardiac visualization.', echoKey: 'Subcostal view works even when apical windows are poor (emphysema, mechanical ventilation). Essential in ICU and trauma.' },
+  { imageCategory: 'valves_cine', question: 'This clip shows cardiac valves in motion. During systole, which valves should be open?', options: ['Aortic and pulmonic valves', 'Mitral and tricuspid valves', 'All four valves', 'No valves are open during systole'], correct: 0, explanation: '**Aortic and pulmonic (semilunar) valves:** During ventricular systole, blood is ejected through the open aortic and pulmonic valves. The mitral and tricuspid (AV) valves are closed.', echoKey: 'Systole: semilunar open, AV closed. Diastole: AV open, semilunar closed. Valve timing abnormalities suggest pathology.' },
+  { imageCategory: 'valves_cine', question: 'Watching the valves move in this clip, during which phase do the mitral and tricuspid valves open to allow ventricular filling?', options: ['Diastole', 'Systole', 'Isovolumetric contraction', 'Ejection phase'], correct: 0, explanation: '**Diastole:** The AV valves open when ventricular pressure drops below atrial pressure, allowing passive filling (E-wave) followed by atrial contraction (A-wave).', echoKey: 'E-wave = passive filling (normally dominant). A-wave = atrial kick. E/A ratio helps grade diastolic function.' },
+  { imageCategory: 'mvp_cine', question: 'In this clip, a valve leaflet can be seen prolapsing (bowing backward) past the annular plane. What condition does this represent?', options: ['Mitral valve prolapse', 'Aortic stenosis', 'Tricuspid regurgitation', 'Mitral stenosis'], correct: 0, explanation: '**Mitral valve prolapse (MVP):** One or both MV leaflets displace ≥2 mm above the mitral annular plane during systole. Common finding (2–3% of population).', echoKey: 'MVP is best diagnosed in PLAX (not A4C, which can overdiagnose due to saddle shape). Look for leaflet thickening and MR.' },
+  { imageCategory: 'mvp_cine', question: 'The valve abnormality shown in this clip can lead to which hemodynamic consequence?', options: ['Mitral regurgitation (blood leaking back into LA)', 'Aortic stenosis (outflow obstruction)', 'Tricuspid stenosis', 'Pulmonic regurgitation'], correct: 0, explanation: '**Mitral regurgitation:** When the MV leaflets don\'t close properly due to prolapse, blood leaks backward into the LA during systole. Severity ranges from trivial to severe.', echoKey: 'MR assessment: jet area, vena contracta (≥7 mm = severe), PISA radius, pulmonary vein flow reversal.' },
+  { imageCategory: 'tamponade_cine', question: 'This clip shows a heart with pericardial fluid. Watch for chamber compression — which finding would indicate tamponade physiology?', options: ['Right-sided chamber collapse during the cardiac cycle', 'Left ventricular hypertrophy', 'Aortic root dilation', 'Normal wall motion'], correct: 0, explanation: '**Right-sided chamber collapse:** RA systolic collapse and RV diastolic collapse are the hallmark echo findings of tamponade. The right-sided chambers collapse because they have the lowest intracardiac pressures.', echoKey: 'RA collapse >⅓ cardiac cycle = specific. RV diastolic collapse = more specific. Always check IVC for plethora.' },
+  { imageCategory: 'tamponade_cine', question: 'In this cine loop showing pericardial effusion, the heart appears to be moving freely within the fluid. What is this motion pattern called?', options: ['Swinging heart', 'Hyperdynamic motion', 'Paradoxical septal motion', 'Apical ballooning'], correct: 0, explanation: '**Swinging heart:** In large pericardial effusions, the heart swings freely within the fluid, creating alternating electrical axis on ECG (electrical alternans).', echoKey: 'Swinging heart + electrical alternans + pulsus paradoxus = classic tamponade triad. May need emergent pericardiocentesis.' },
+  { imageCategory: 'hcm_cine', question: 'In this clip, the interventricular septum appears abnormally thick. What condition does this suggest?', options: ['Hypertrophic cardiomyopathy (HCM)', 'Dilated cardiomyopathy', 'Normal heart', 'Pericardial effusion'], correct: 0, explanation: '**Hypertrophic cardiomyopathy (HCM):** Asymmetric septal hypertrophy (≥15 mm, or ≥13 mm with family history) is the hallmark of HCM. The LV cavity appears small.', echoKey: 'HCM: IVS ≥15 mm, SAM of MV, dynamic LVOT obstruction, small LV cavity. Screen first-degree relatives.' },
+  { imageCategory: 'hcm_cine', question: 'In a patient with the septal thickening seen in this clip, what dangerous complication should you assess for during systole?', options: ['Dynamic LVOT obstruction', 'Aortic root dissection', 'RV failure', 'Pericardial tamponade'], correct: 0, explanation: '**Dynamic LVOT obstruction:** In obstructive HCM, the thickened septum narrows the LVOT and the anterior MV leaflet is pulled toward it (SAM), creating a gradient that worsens with Valsalva or standing.', echoKey: 'LVOT gradient >30 mmHg at rest = obstructive HCM. Provocable obstruction with Valsalva = latent obstruction. CW Doppler in A5C.' },
 ];
 
 function EchoViewSVG({ id }: { id: EchoImageId }) {
@@ -2696,7 +2739,7 @@ function EchoImageQuiz() {
       </div>
       <div style={{ background: PS, border: `1.5px solid ${PB}`, borderRadius: 20, padding: '14px 14px 10px', marginBottom: 12, boxShadow: '0 2px 12px rgba(224,122,143,0.08)' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: PT, lineHeight: 1.5, marginBottom: 12 }}>{current.question}</div>
-        <EchoClipDisplay src={imageMap[idx] ?? ''} />
+        <EchoClipDisplay src={imageMap[idx] ?? ''} category={current.imageCategory} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
         {current.options.map((opt, i) => {
