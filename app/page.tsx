@@ -572,7 +572,7 @@ function ConfettiCelebration({ onDone }: { onDone: () => void }) {
 
     const COLORS = [P, PD, '#f9a8d4', '#fbbf24', '#a78bfa', '#34d399', '#fb923c', '#fff'];
     type Particle = { x: number; y: number; vx: number; vy: number; color: string; w: number; h: number; rot: number; rv: number; alpha: number };
-    const particles: Particle[] = Array.from({ length: 160 }, () => ({
+    const makeParticle = (): Particle => ({
       x: Math.random() * canvas.width,
       y: -10 - Math.random() * 300,
       vx: (Math.random() - 0.5) * 5,
@@ -583,16 +583,21 @@ function ConfettiCelebration({ onDone }: { onDone: () => void }) {
       rot: Math.random() * Math.PI * 2,
       rv: (Math.random() - 0.5) * 0.18,
       alpha: 1,
-    }));
+    });
+    const particles: Particle[] = Array.from({ length: 160 }, makeParticle);
 
     let frame = 0;
     let raf: number;
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       frame++;
+      // Periodic confetti bursts so it keeps raining
+      if (frame === 200 || frame === 400 || frame === 600) {
+        for (let i = 0; i < 120; i++) particles.push(makeParticle());
+      }
       for (const p of particles) {
         p.x += p.vx; p.y += p.vy; p.vy += 0.04; p.rot += p.rv;
-        if (frame > 100) p.alpha = Math.max(0, p.alpha - 0.012);
+        if (frame > 700) p.alpha = Math.max(0, p.alpha - 0.012);
         ctx.save();
         ctx.globalAlpha = p.alpha;
         ctx.translate(p.x, p.y);
@@ -601,7 +606,7 @@ function ConfettiCelebration({ onDone }: { onDone: () => void }) {
         ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
       }
-      if (frame < 200) { raf = requestAnimationFrame(draw); } else { onDone(); }
+      if (frame < 800) { raf = requestAnimationFrame(draw); } else { onDone(); }
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
